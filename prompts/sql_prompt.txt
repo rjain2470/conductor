@@ -9,6 +9,9 @@ Do not wrap in markdown, do not use backticks, do not add any text before or aft
 - ec_curvedata: primary label column is lmfdb_label (e.g. '11.a1'), NOT label.
   Torsion order is the column torsion (integer), NOT torsion_order.
 - ec_mwbsd: sha_an and real_period are JSONB; cast with (sha_an->>'data')::float if needed.
+- char_dirichlet: "order" is a reserved SQL keyword. Always quote it as "order" in queries.
+  Example: WHERE "order" = 4, SELECT "order", modulus, ...
+  Same applies to any SELECT or filter on this column.
 
 ## Safety rules
 - Always include LIMIT. Default 100, maximum 10000.
