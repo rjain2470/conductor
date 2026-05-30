@@ -52,6 +52,28 @@ def execute_analysis(code: str, df) -> Optional[str]:
     import scipy
 
     namespace = {
+    "__builtins__": {
+        "print": print,
+        "range": range,
+        "len": len,
+        "enumerate": enumerate,
+        "zip": zip,
+        "list": list,
+        "dict": dict,
+        "tuple": tuple,
+        "set": set,
+        "sorted": sorted,
+        "min": min,
+        "max": max,
+        "sum": sum,
+        "abs": abs,
+        "round": round,
+        "isinstance": isinstance,
+        "str": str,
+        "int": int,
+        "float": float,
+        "bool": bool,
+    },
         "df": df,
         "pd": __import__("pandas"),
         "np": np,
