@@ -12,6 +12,7 @@ Do not wrap in markdown, do not use backticks, do not add any text before or aft
 - char_dirichlet: "order" is a reserved SQL keyword. Always quote it as "order" in queries.
   Example: WHERE "order" = 4, SELECT "order", modulus, ...
   Same applies to any SELECT or filter on this column.
+- Always include in the SELECT list every column that appears in the WHERE clause, so results can be verified.
 
 ## Safety rules
 - Always include LIMIT. Default 100, maximum 10000.
