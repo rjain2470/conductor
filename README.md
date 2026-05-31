@@ -83,7 +83,7 @@ conductor/
 ```
 
 # Limitations 🟥
-- The server connects to devmirror.lmfdb.xyz, which may only have partial coverage compared to the full LMFDB. Moreover, since the LMFDB itself is not fully comprehensive, some data may be unavailable.
+- The server connects to devmirror.lmfdb.xyz, which may only have partial coverage of the full LMFDB. Moreover, since the LMFDB itself is not fully comprehensive, some data may be unavailable.
 - Queries are subject to API rate limits. Therefore, responses may slow under heavy load.
 -  Conductor is under active development, and thus you may encounter occasional errors or unexpected behaviour. If you do, please open a GitHub issue to report it. 
 
