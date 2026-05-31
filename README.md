@@ -1,6 +1,10 @@
 # Conductor 🔋
 
-Conductor is a natural language interface to the [LMFDB](https://www.lmfdb.org) (L-functions and Modular Forms Database). It translates mathematical questions into SQL, executes them against the LMFDB PostgreSQL database, and returns structured data with optional exploratory analysis and plots.
+Conductor is a natural language interface to the [LMFDB](https://www.lmfdb.org) (L-functions and Modular Forms Database). It translates mathematical questions into SQL, executes them against the LMFDB PostgreSQL database, and returns structured data with optional exploratory analysis and plots. It is designed to make the rich collection of mathematical data in the LMFDB more accessible for exploration, research, and teaching.
+
+Given a query in plain English, Conductor identifies and retrieves the relevant mathematical data from the database, and can optionally summarize, analyze, or visualize the results at the user's convenience. This allows users to explore the LMFDB without needing to learn its internal structure or write database queries by hand.
+
+For instance, a mathematician can directly ask Conductor the following questions:
 
 For instance, rather than navigating the LMFDB or constructing SQL queries by hand, a mathematician can ask Conductor:
 
@@ -13,6 +17,8 @@ For instance, rather than navigating the LMFDB or constructing SQL queries by ha
 > "I'm interested in the relationship between regulator and discriminant for totally real cubic fields of class number 1 — can you pull those and plot them on a log-log scale?"
 
 > "Give me a table of the weight-2 newforms with CM at squarefree levels under 500."
+
+By utilizing modern methods in prompt engineering, text-to-SQL, and AI-powered data analysis, Conductor allows users to spend less time navigating databases and more time exploring mathematical questions.
 
 # Setup 
 
