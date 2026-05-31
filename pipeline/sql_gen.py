@@ -24,14 +24,28 @@ _PROMPT_TEMPLATE = _load_prompt()
 
 _FORBIDDEN = {"INSERT", "UPDATE", "DELETE", "DROP", "CREATE", "ALTER", "TRUNCATE"}
 
+_SELECT_STAR_NOTE = (
+    "\n\nIMPORTANT: Your previous attempt used SELECT *. "
+    "You MUST explicitly name every column in the SELECT list. "
+    "Do not use SELECT *. "
+    "Choose the 6-10 most relevant columns for the query."
+)
 
-def generate_sql(query: str, tables: list[str]) -> dict:
+
+def generate_sql(query: str, tables: list[str], _retry: bool = False) -> dict:
     """
     Return {"sql": "...", "explanation": "..."}.
     sql is None if the query cannot be answered with a single SELECT.
+
+    If the generated SQL uses SELECT *, retries once with an explicit instruction
+    to name columns.
     """
     schema_slice = {t: _FULL_SCHEMA[t] for t in tables if t in _FULL_SCHEMA}
-    system = _PROMPT_TEMPLATE.replace("<<SCHEMA>>", json.dumps(schema_slice, indent=2))
+    prompt = _PROMPT_TEMPLATE
+    if _retry:
+        prompt = prompt + _SELECT_STAR_NOTE
+
+    system = prompt.replace("<<SCHEMA>>", json.dumps(schema_slice, indent=2))
     client = Anthropic()
     r = client.messages.create(
         model="claude-sonnet-4-6",
@@ -40,9 +54,21 @@ def generate_sql(query: str, tables: list[str]) -> dict:
         messages=[{"role": "user", "content": query}]
     )
     result = _parse(r.content[0].text)
-    if result.get("sql"):
-        _validate(result["sql"])
+    sql = result.get("sql")
+
+    if sql:
+        # If SELECT * and this isn't already a retry, retry once
+        if _has_select_star(sql) and not _retry:
+            return generate_sql(query, tables, _retry=True)
+        _validate(sql)
+
     return result
+
+
+def _has_select_star(sql: str) -> bool:
+    """Return True if the SQL contains a bare SELECT * or SELECT table.*"""
+    # Match SELECT * or SELECT alias.* but not COUNT(*)
+    return bool(re.search(r'SELECT\s+(?:\w+\.)?\*', sql, re.IGNORECASE))
 
 
 def _validate(sql: str) -> None:
@@ -52,6 +78,11 @@ def _validate(sql: str) -> None:
             raise ValueError(f"Forbidden keyword in generated SQL: {kw}")
     if "LIMIT" not in upper:
         raise ValueError("Generated SQL is missing a LIMIT clause.")
+    if _has_select_star(sql):
+        raise ValueError(
+            "Generated SQL uses SELECT * after retry. "
+            "Please name the specific columns you need."
+        )
 
 
 def _parse(text: str) -> dict:
