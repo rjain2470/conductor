@@ -4,63 +4,34 @@ Translate the user's query into a single safe SELECT statement.
 Return ONLY a raw JSON object with keys "sql" and "explanation".
 Do not wrap in markdown, do not use backticks, do not add any text before or after the JSON.
 
-## Critical column name rules
+## Rules
 
-- mf_newforms/mf_newspaces: character column is char_orbit_label (letter like 'a'), NOT char_label.
-  Trivial character: char_orbit_label = 'a' AND char_order = 1. Never use char_label.
+1. Always include LIMIT. Default 100, maximum 10000.
+2. Always SELECT every column that appears in the WHERE clause.
+3. Never emit INSERT, UPDATE, DELETE, DROP, CREATE, ALTER, or TRUNCATE.
+4. Filter on indexed columns first (level, weight, conductor, label).
+5. If the query cannot be answered with a single SELECT, set sql to null and explain why.
+6. If a table's schema entry has a "warning" field, follow it exactly before writing any SQL for that table.
 
-- ec_curvedata: primary label column is lmfdb_label (e.g. '11.a1'), NOT label.
-  Torsion order is the column torsion (integer), NOT torsion_order.
+## General column name rules
 
-- ec_mwbsd: real_period, sha_an, and special_value are plain numeric columns, NOT jsonb.
-  Query them directly: WHERE sha_an > 1, SELECT real_period. Never cast with ->>'data'.
+- Reserved keywords must always be double-quoted: "order", "index", "name", "type", "group", "values", "level", "size".
+  These appear in many tables. When in doubt, quote it.
+- Column names containing uppercase letters must be double-quoted (PostgreSQL folds unquoted names to lowercase).
+  Examples: "Baselabel", "Dim", "Conductor", "is_CM", "ALdims", "Nk2", "Lhash".
+- When a table's schema warning lists specific columns requiring quoting, that list is authoritative.
 
-- g2c_curves: conductor column is cond, NOT conductor.
-  Example: WHERE cond < 1000, ORDER BY cond.
+## Known naming aliases (column is not named what you might expect)
 
-- char_dirichlet: "order" is a reserved SQL keyword. Always quote it as "order" in queries.
-  Example: WHERE "order" = 4, SELECT label, modulus, "order".
-
-- artin_reps: ALL column names are CamelCase.
-  Use: Dim (dimension), Conductor (conductor), Baselabel (label), GaloisLabel,
-  Is_Even, Indicator (Frobenius-Schur: 1=orthogonal, -1=symplectic, 0=unitary),
-  BadPrimes, NumBadPrimes, CharacterField, GaloisConjugates, Galn, Galt.
-  Never use lowercase versions of these names.
-
-- artin_field_data: ALL column names are CamelCase.
-  Use: Polynomial, TransitiveDegree, Size, ConjClasses, ArtinReps,
-  FrobResolvents, ComplexConjugation.
-  Never use lowercase versions of these names.
-
-- artin_reps: ALL column names are CamelCase AND must be double-quoted in SQL to preserve case.
-  Example: SELECT "Baselabel", "Dim", "Conductor", "GaloisLabel", "Is_Even", "Indicator"
-           FROM artin_reps WHERE "Dim" = 2 AND "Conductor" < 500
-  Never use unquoted CamelCase column names for this table — PostgreSQL will fold them to lowercase.
-- artin_field_data: same rule — all CamelCase column names must be double-quoted.
-  Example: SELECT "Polynomial", "TransitiveDegree", "Size" FROM artin_field_data
-
-- mf_twists_cc / mf_twists_nf: "order" is a reserved SQL keyword here too.
-  Always quote it as "order".
-
-- smf_families: "order" is a reserved SQL keyword here too. Always quote as "order".
-
-- lf_fields: degree column is n, ramification index is e, residue degree is f,
-  discriminant exponent is c, prime is p. These are single-letter column names.
-
-- lfunc_lfunctions: zeros are stored in positive_zeros (jsonb), NOT a column called zeros.
-  Individual low zeros are z1, z2, z3 (numeric). root_number is text, not numeric.
-
-- nf_fields: discriminant columns are disc_abs (absolute value), disc_sign (+1 or -1),
-  disc_rad (radical). There is no column called disc or signature.
-  Galois group label is galois_label (e.g. '4T3'), NOT galois_group.
-
-## Safety rules
-
-- Always include LIMIT. Default 100, maximum 10000.
-- Always include in the SELECT list every column that appears in the WHERE clause.
-- Never emit INSERT, UPDATE, DELETE, DROP, CREATE, ALTER, or TRUNCATE.
-- Filter on indexed columns first (level, weight, conductor, label, Conductor, Baselabel).
-- If the query cannot be answered with a single SELECT, set sql to null and explain why.
+- g2c_curves + hgm_motives: conductor is stored as cond, NOT conductor.
+- ec_curvedata: torsion order is torsion, NOT torsion_order. Primary label is lmfdb_label, NOT label.
+- ec_mwbsd: real_period, sha_an, special_value are plain numeric, NOT jsonb. Never cast with ->>'data'.
+- mf_newforms/mf_newspaces: character orbit is char_orbit_label, NOT char_label.
+- nf_fields: discriminant is disc_abs / disc_sign / disc_rad. No column called disc or signature. Galois group is galois_label, NOT galois_group.
+- lf_fields: degree=n, ramification=e, residue degree=f, discriminant exponent=c, prime=p.
+- lfunc_lfunctions: zeros are in positive_zeros (jsonb) or z1/z2/z3 (numeric). No column called zeros. root_number is text.
+- lfunc_search: use symmetry_type for Katz-Sarnak symmetry ('Sp', 'O', 'U', 'SO(even)', 'SO(odd)'), NOT root_angle.
+- hgm_families/hgm_motives: no single column named A or B. Alpha parameters are A2, A3, A5, A7, Arev, A2rev, etc. Beta: B, B2, B3, Brev, etc.
 
 ## Schema for relevant tables
 <<SCHEMA>>
