@@ -84,7 +84,8 @@
         "level_is_square": "boolean \u2014 Whether N is a perfect square.",
         "level_is_squarefree": "boolean \u2014 Whether N is squarefree.",
         "level_is_powerful": "boolean \u2014 Whether N is powerful (every prime divides to at least the second power)."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"level\" must always be double-quoted in SQL. Example: WHERE \"level\" = value, SELECT \"level\". | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"Nk2\"."
     },
     "mf_newspaces": {
       "description": "Newspaces S_k^new(N, chi). Each row is a (level, weight, character orbit) triple.",
@@ -138,7 +139,8 @@
         "level_is_square": "boolean \u2014 Whether N is a perfect square.",
         "level_is_squarefree": "boolean \u2014 Whether N is squarefree.",
         "level_is_powerful": "boolean \u2014 Whether N is powerful."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"level\" must always be double-quoted in SQL. Example: WHERE \"level\" = value, SELECT \"level\". | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"Nk2\", \"ALdims\", \"ALdims_old\", \"ALdims_eis_new\", \"ALdims_eis_old\"."
     },
     "lfunc_lfunctions": {
       "description": "L-functions in the LMFDB.",
@@ -214,7 +216,8 @@
         "values": "jsonb \u2014 Special values.",
         "load_key": "text \u2014 Internal load key.",
         "credit": "text \u2014 Credit string."
-      }
+      },
+      "warning": "RESERVED KEYWORDS \u2014 must always be double-quoted in SQL: \"group\", \"index\", \"values\". Example: SELECT \"group\", \"index\", \"values\" FROM lfunc_lfunctions WHERE \"group\" = ... | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"Lhash\", \"A2\", \"A3\", \"A4\", \"A5\", \"A6\", \"A7\", \"A8\", \"A9\", \"A10\"."
     },
     "lfunc_instances": {
       "description": "Links from LMFDB objects to their L-functions.",
@@ -226,7 +229,8 @@
         "type": "text \u2014 Source object type: CMF, EC, G2C, NF, DIR, Artin.",
         "url": "text \u2014 LMFDB URL of the source object.",
         "factors": "text[] \u2014 Labels of L-function factors."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"type\" must always be double-quoted in SQL. Example: WHERE \"type\" = value, SELECT \"type\". | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"Lhash\", \"Lhash_array\"."
     },
     "ec_curvedata": {
       "description": "Elliptic curves over Q. Primary key is lmfdb_label.",
@@ -283,7 +287,8 @@
         "abc_quality": "float \u2014 ABC quality of the curve.",
         "szpiro_ratio": "float \u2014 Szpiro ratio.",
         "intrinsic_torsion": "smallint \u2014 Intrinsic torsion."
-      }
+      },
+      "warning": "CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"Clabel\", \"Ciso\", \"Cnumber\", \"absD\", \"signD\"."
     },
     "ec_mwbsd": {
       "description": "Mordell-Weil and BSD data for elliptic curves over Q.",
@@ -366,7 +371,8 @@
         "embeddings_gen_imag": "float[] \u2014 Imaginary parts of embeddings of the generator.",
         "used_grh": "boolean \u2014 Whether GRH was assumed in computations.",
         "maxp": "numeric \u2014 Largest prime for which local data is stored."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"index\" must always be double-quoted in SQL. Example: WHERE \"index\" = value, SELECT \"index\"."
     },
     "char_dirichlet": {
       "description": "Dirichlet characters chi: (Z/qZ)* -> C*. NOTE: 'order' is a reserved SQL keyword \u2014 always quote it as \"order\" in queries.",
@@ -385,7 +391,8 @@
         "is_minimal": "boolean \u2014 Whether chi is minimal.",
         "is_primitive": "boolean \u2014 Whether chi is primitive.",
         "is_real": "boolean \u2014 Whether chi takes only real values."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"order\" must always be double-quoted in SQL. Example: WHERE \"order\" = value, SELECT \"order\"."
     },
     "g2c_curves": {
       "description": "Genus-2 curves over Q. NOTE: conductor column is named 'cond', not 'conductor'.",
@@ -441,7 +448,8 @@
         "geom_aut_grp_label": "text \u2014 Geometric automorphism group label.",
         "geom_aut_grp_tex": "text \u2014 Geometric automorphism group LaTeX name.",
         "two_torsion_field": "jsonb \u2014 2-torsion field data."
-      }
+      },
+      "warning": "CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"Lhash\"."
     },
     "artin_reps": {
       "description": "Artin representations rho: Gal(Kbar/Q) -> GL_n(C). IMPORTANT: all column names are CamelCase.",
@@ -469,7 +477,7 @@
         "Proj_Polynomial": "numeric[] \u2014 Defining polynomial of the projective field.",
         "NumBadPrimes": "smallint \u2014 Number of bad primes."
       },
-      "warning": "ALL column names are CamelCase: Dim, Conductor, Baselabel, GaloisLabel, Is_Even, Indicator, BadPrimes, NumBadPrimes, CharacterField."
+      "warning": "ALL column names are CamelCase: Dim, Conductor, Baselabel, GaloisLabel, Is_Even, Indicator, BadPrimes, NumBadPrimes, CharacterField. | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"Baselabel\", \"Dim\", \"Conductor\", \"Galn\", \"Galt\", \"Container\", \"Indicator\", \"BadPrimes\", \"HardPrimes\", \"GaloisConjugates\", \"GalConjSigns\", \"CharacterField\", \"NFGal\", \"Hide\", \"Dets\", \"Is_Even\", \"GaloisLabel\", \"Proj_GAP\", \"Proj_nTj\", \"Proj_Polynomial\", \"NumBadPrimes\"."
     },
     "artin_field_data": {
       "description": "Splitting field and Frobenius data for Artin representations. IMPORTANT: all column names are CamelCase.",
@@ -490,7 +498,7 @@
         "TransitiveDegree": "smallint \u2014 Degree of the transitive permutation representation.",
         "Size": "numeric \u2014 Order of the Galois group."
       },
-      "warning": "ALL column names are CamelCase: Polynomial, TransitiveDegree, Size, ConjClasses, ArtinReps, FrobResolvents, ComplexConjugation."
+      "warning": "ALL column names are CamelCase: Polynomial, TransitiveDegree, Size, ConjClasses, ArtinReps, FrobResolvents, ComplexConjugation. | RESERVED KEYWORD \u2014 column \"Size\" must always be double-quoted in SQL. Example: WHERE \"Size\" = value, SELECT \"Size\". | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"ConjClasses\", \"G-Name\", \"QpRts-minpoly\", \"ComplexConjugation\", \"FrobResolvents\", \"QpRts-prec\", \"ArtinReps\", \"G-Gens\", \"Polynomial\", \"QpRts\", \"Frobs\", \"QpRts-p\", \"TransitiveDegree\", \"Size\"."
     },
     "mf_hecke_cc": {
       "description": "Hecke eigenvalues at complex embeddings of newforms.",
@@ -512,7 +520,8 @@
         "dual_conrey_index": "integer \u2014 Conrey index of the dual embedding.",
         "dual_embedding_index": "integer \u2014 Global index of the dual embedding.",
         "dual_embedding_m": "integer \u2014 m-index of the dual embedding."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"level\" must always be double-quoted in SQL. Example: WHERE \"level\" = value, SELECT \"level\"."
     },
     "mf_hecke_nf": {
       "description": "Hecke eigenvalues over the coefficient number field.",
@@ -535,7 +544,8 @@
         "level": "integer \u2014 Level N.",
         "weight": "smallint \u2014 Weight k.",
         "char_orbit_index": "smallint \u2014 Character orbit index."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"level\" must always be double-quoted in SQL. Example: WHERE \"level\" = value, SELECT \"level\"."
     },
     "mf_hecke_traces": {
       "description": "Hecke traces Tr(a_n) indexed by hecke_orbit_code and n.",
@@ -593,7 +603,7 @@
         "source_embedding_index": "integer \u2014 Embedding index of source.",
         "target_embedding_index": "integer \u2014 Embedding index of target."
       },
-      "warning": "'order' is a reserved SQL keyword \u2014 always quote as \"order\"."
+      "warning": "'order' is a reserved SQL keyword \u2014 always quote as \"order\". | RESERVED KEYWORD \u2014 column \"order\" must always be double-quoted in SQL. Example: WHERE \"order\" = value, SELECT \"order\"."
     },
     "mf_twists_nf": {
       "description": "Twists of newforms by Dirichlet characters over coefficient field.",
@@ -623,7 +633,7 @@
         "twist_class_level": "integer \u2014 Level of the twist class.",
         "self_twist_disc": "integer \u2014 Discriminant of self-twist character if applicable."
       },
-      "warning": "'order' is a reserved SQL keyword \u2014 always quote as \"order\"."
+      "warning": "'order' is a reserved SQL keyword \u2014 always quote as \"order\". | RESERVED KEYWORD \u2014 column \"order\" must always be double-quoted in SQL. Example: WHERE \"order\" = value, SELECT \"order\"."
     },
     "mf_boxes": {
       "description": "Rectangular (level, weight, char order) boxes for which newform data is complete.",
@@ -651,7 +661,8 @@
         "embedding_count": "bigint \u2014 Number of complex embeddings.",
         "Nk_count": "integer \u2014 Number of (N,k) pairs.",
         "nonzero_Nk_count": "integer \u2014 Number of non-empty (N,k) pairs."
-      }
+      },
+      "warning": "CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"Nmin\", \"Nmax\", \"Nk2min\", \"Nk2max\", \"Dmin\", \"Dmax\", \"Nk_count\", \"nonzero_Nk_count\"."
     },
     "mf_gamma1": {
       "description": "Spaces of modular forms for Gamma_1(N) \u2014 aggregated over all characters.",
@@ -689,7 +700,8 @@
         "level_is_squarefree": "boolean \u2014 Whether N is squarefree.",
         "level_is_prime_square": "boolean \u2014 Whether N is a prime square.",
         "level_is_powerful": "boolean \u2014 Whether N is powerful."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"level\" must always be double-quoted in SQL. Example: WHERE \"level\" = value, SELECT \"level\". | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"Nk2\"."
     },
     "mf_stark": {
       "description": "Stark units and CM values for weight-1 newforms.",
@@ -716,7 +728,8 @@
         "error": "numeric \u2014 Numerical error estimate.",
         "maass_id": "text \u2014 Unique identifier for the Maass form.",
         "contributor": "text \u2014 Who contributed this form."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"level\" must always be double-quoted in SQL. Example: WHERE \"level\" = value, SELECT \"level\"."
     },
     "maass_newforms_coefficients": {
       "description": "Fourier coefficients of numerical Maass newforms.",
@@ -740,7 +753,8 @@
         "fricke_eigenvalue": "smallint \u2014 Fricke involution eigenvalue.",
         "maass_index": "text \u2014 Index within the certification database.",
         "maass_label": "text \u2014 Label of the certified Maass form."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"level\" must always be double-quoted in SQL. Example: WHERE \"level\" = value, SELECT \"level\"."
     },
     "maass_rigor_coefficients": {
       "description": "Coefficients of rigorously certified Maass forms.",
@@ -772,7 +786,8 @@
         "level_ideal": "text \u2014 Level ideal as a string.",
         "field_bad_primes": "integer[] \u2014 field_bad_primes.",
         "level_bad_primes": "integer[] \u2014 level_bad_primes."
-      }
+      },
+      "warning": "CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"is_CM\"."
     },
     "hmf_fields": {
       "description": "Totally real base fields used in Hilbert modular form data.",
@@ -794,7 +809,8 @@
         "AL_eigenvalues": "text \u2014 Atkin-Lehner eigenvalue data.",
         "hecke_eigenvalues": "text \u2014 Hecke eigenvalue data.",
         "label": "text \u2014 Label of the Hilbert modular form."
-      }
+      },
+      "warning": "CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"AL_eigenvalues\"."
     },
     "bmf_forms": {
       "description": "Bianchi modular forms over imaginary quadratic fields.",
@@ -823,7 +839,8 @@
         "field_bad_primes": "integer[] \u2014 field_bad_primes.",
         "level_bad_primes": "integer[] \u2014 level_bad_primes.",
         "curve_status": "smallint \u2014 curve_status."
-      }
+      },
+      "warning": "CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"CM\", \"AL_eigs\", \"Lratio\"."
     },
     "bmf_dims": {
       "description": "Dimensions of Bianchi modular form spaces.",
@@ -862,7 +879,8 @@
         "is_eigenform": "boolean \u2014 is_eigenform.",
         "representation": "text \u2014 Representation label.",
         "explicit_formula": "text \u2014 Explicit formula."
-      }
+      },
+      "warning": "RESERVED KEYWORDS \u2014 must always be double-quoted in SQL: \"name\", \"type\". Example: SELECT \"name\", \"type\" FROM smf_samples WHERE \"name\" = ... | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"Fourier_coefficients\"."
     },
     "smf_dims": {
       "description": "Dimensions of Siegel modular form spaces.",
@@ -886,7 +904,8 @@
         "6": "text \u2014 6.",
         "title": "text \u2014 title.",
         "222": "text \u2014 222."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"group\" must always be double-quoted in SQL. Example: WHERE \"group\" = value, SELECT \"group\"."
     },
     "smf_ev": {
       "description": "Eigenvalues for Siegel modular forms.",
@@ -895,7 +914,8 @@
         "owner_id": "integer \u2014 Foreign key to smf_samples.id.",
         "index": "smallint \u2014 Eigenvalue index.",
         "data": "jsonb \u2014 Eigenvalue data."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"index\" must always be double-quoted in SQL. Example: WHERE \"index\" = value, SELECT \"index\"."
     },
     "smf_fc": {
       "description": "Fourier coefficients of Siegel modular forms.",
@@ -917,7 +937,7 @@
         "order": "integer \u2014 Order parameter. RESERVED KEYWORD: quote as \"order\".",
         "plain_name": "text \u2014 Plain text family name."
       },
-      "warning": "'order' is a reserved SQL keyword \u2014 always quote as \"order\"."
+      "warning": "'order' is a reserved SQL keyword \u2014 always quote as \"order\". | RESERVED KEYWORDS \u2014 must always be double-quoted in SQL: \"name\", \"order\". Example: SELECT \"name\", \"order\" FROM smf_families WHERE \"name\" = ..."
     },
     "halfmf_forms": {
       "description": "Modular forms of half-integral weight.",
@@ -931,7 +951,8 @@
         "dimtheta": "smallint \u2014 Theta series dimension.",
         "newpart": "jsonb \u2014 New part data.",
         "character": "text \u2014 Character label."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"level\" must always be double-quoted in SQL. Example: WHERE \"level\" = value, SELECT \"level\"."
     },
     "modlmf_forms": {
       "description": "Mod-l modular forms.",
@@ -953,7 +974,8 @@
         "ordinary": "smallint \u2014 Whether ordinary (1=yes, 0=no).",
         "weight_grading": "smallint \u2014 Weight grading.",
         "deg": "smallint \u2014 Degree."
-      }
+      },
+      "warning": "RESERVED KEYWORDS \u2014 must always be double-quoted in SQL: \"index\", \"level\". Example: SELECT \"index\", \"level\" FROM modlmf_forms WHERE \"index\" = ..."
     },
     "modlgal_reps": {
       "description": "Mod-l Galois representations.",
@@ -1068,7 +1090,8 @@
         "is_instance_MaassGL4": "boolean \u2014 is_instance_MaassGL4.",
         "is_instance_MaassGSp4": "boolean \u2014 is_instance_MaassGSp4.",
         "is_instance_NF": "boolean \u2014 Whether has a number field instance."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"index\" must always be double-quoted in SQL. Example: WHERE \"index\" = value, SELECT \"index\". | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"is_instance_Artin\", \"is_instance_BMF\", \"is_instance_CMF\", \"is_instance_DIR\", \"is_instance_ECNF\", \"is_instance_ECQ\", \"is_instance_G2Q\", \"is_instance_HMF\", \"is_instance_MaassGL3\", \"is_instance_MaassGL4\", \"is_instance_MaassGSp4\", \"is_instance_NF\"."
     },
     "ec_classdata": {
       "description": "Isogeny class data for elliptic curves over Q.",
@@ -1189,7 +1212,8 @@
         "nonmax_rad": "integer \u2014 nonmax_rad.",
         "root_analytic_conductor": "float \u2014 root_analytic_conductor.",
         "cm_type": "smallint \u2014 cm_type."
-      }
+      },
+      "warning": "CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"minD\", \"Lvalue\"."
     },
     "g2c_endomorphisms": {
       "description": "Endomorphism algebras and rings of genus-2 Jacobians.",
@@ -1215,7 +1239,8 @@
         "ring_base": "jsonb \u2014 ring_base.",
         "spl_fod_gen": "jsonb \u2014 spl_fod_gen.",
         "factorsRR_geom": "jsonb \u2014 factorsRR_geom."
-      }
+      },
+      "warning": "CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"factorsRR_base\", \"factorsQQ_geom\", \"factorsQQ_base\", \"factorsRR_geom\"."
     },
     "g2c_galrep": {
       "description": "Galois representation images for genus-2 curves.",
@@ -1351,7 +1376,8 @@
         "cohen_macaulay_max": "smallint \u2014 cohen_macaulay_max.",
         "is_cyclic": "boolean \u2014 is_cyclic.",
         "noncyclic_primes": "integer[] \u2014 noncyclic_primes."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"size\" must always be double-quoted in SQL. Example: WHERE \"size\" = value, SELECT \"size\"."
     },
     "av_fq_endalg_data": {
       "description": "Endomorphism algebra data for abelian variety isogeny classes.",
@@ -1393,7 +1419,8 @@
         "source": "text \u2014 Source of the computation.",
         "torsion_gen": "text \u2014 Torsion generator of unit group.",
         "unitsType": "text \u2014 Type of unit group."
-      }
+      },
+      "warning": "CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"unitsGmodule\", \"unitsType\"."
     },
     "nf_fields_reflex": {
       "description": "Reflex fields of CM number fields.",
@@ -1407,7 +1434,8 @@
         "rf_emb_imag": "float[] \u2014 Imaginary parts of reflex field embeddings.",
         "galois_orbits": "smallint[] \u2014 Galois orbits of CM types.",
         "rf_rf": "text[] \u2014 Reflex of reflex field labels."
-      }
+      },
+      "warning": "CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"CM_types\"."
     },
     "lf_fields": {
       "description": "p-adic local fields. NOTE: degree=n, ramification=e, residue degree=f, prime=p.",
@@ -1588,7 +1616,8 @@
         "hinf": "integer[] \u2014 hinf.",
         "h0": "integer[] \u2014 h0.",
         "h1": "integer[] \u2014 h1."
-      }
+      },
+      "warning": "CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"Bu2rev\", \"A5rev\", \"Au3rev\", \"Arev\", \"A\", \"A7\", \"Au2rev\", \"A2rev\", \"A3\", \"A2\", \"A5\", \"Au7rev\", \"C3\", \"C2\", \"C7\", \"A7rev\", \"Bu3\", \"Cu7\", \"Cu5\", \"B\", \"Cu3\", \"Cu2\", \"B3\", \"Au3\", \"Au2\", \"Au5\", \"B3rev\", \"Au7\", \"Bu7rev\", \"Brev\", \"B5rev\", \"B7rev\", \"Bu5rev\", \"Bu2\", \"Bu7\", \"Bu5\", \"Au5rev\", \"B5\", \"B7\", \"C5\", \"B2\", \"Bu3rev\", \"A3rev\", \"B2rev\"."
     },
     "hgm_motives": {
       "description": "Specialisations of hypergeometric motive families. NOTE: conductor column is cond.",
@@ -1653,7 +1682,7 @@
         "B2rev": "jsonb \u2014 B2rev.",
         "lcms": "jsonb \u2014 lcms."
       },
-      "warning": "Conductor column is 'cond', NOT 'conductor'."
+      "warning": "Conductor column is 'cond', NOT 'conductor'. | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"A\", \"Bu2rev\", \"A5rev\", \"Au3rev\", \"Arev\", \"A7\", \"Au2rev\", \"A2rev\", \"C5\", \"A3\", \"A2\", \"A5\", \"Au7rev\", \"C3\", \"C2\", \"C7\", \"A7rev\", \"Cu7\", \"Cu5\", \"B\", \"Cu3\", \"Cu2\", \"Au3\", \"Au2\", \"Au5\", \"B3rev\", \"Au7\", \"Bu7rev\", \"Brev\", \"B5rev\", \"B7rev\", \"Bu5rev\", \"Bu2\", \"Bu3\", \"Bu7\", \"Bu5\", \"Au5rev\", \"B5\", \"B7\", \"B2\", \"B3\", \"Bu3rev\", \"A3rev\", \"B2rev\"."
     },
     "hgm_monodromy": {
       "description": "Monodromy group data for hypergeometric motive families.",
@@ -1686,7 +1715,8 @@
         "ambient_group_label": "text \u2014 ambient_group_label.",
         "monodromy_matrix_group_label": "text \u2014 monodromy_matrix_group_label.",
         "monodromy_group_label": "text \u2014 monodromy_group_label."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"type\" must always be double-quoted in SQL. Example: WHERE \"type\" = value, SELECT \"type\". | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"A\", \"B\", \"Au\", \"Bu\", \"Cu\"."
     },
     "hgm_euler_survey": {
       "description": "Euler factors for hypergeometric motives.",
@@ -1698,7 +1728,8 @@
         "label": "text \u2014 Motive label.",
         "p": "integer \u2014 Prime.",
         "eulers": "numeric[] \u2014 eulers."
-      }
+      },
+      "warning": "CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"A\", \"B\"."
     },
     "belyi_galmaps": {
       "description": "Belyi maps (dessins d'enfants).",
@@ -1740,7 +1771,8 @@
         "plane_constant": "text \u2014 plane_constant.",
         "plane_model_latex": "text \u2014 plane_model_latex.",
         "plane_map_constant_factored": "text \u2014 plane_map_constant_factored."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"group\" must always be double-quoted in SQL. Example: WHERE \"group\" = value, SELECT \"group\". | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"BelyiDB_label\", \"BelyiDB_plabel\"."
     },
     "belyi_passports": {
       "description": "Passports for Belyi maps.",
@@ -1765,7 +1797,8 @@
         "is_primitive": "boolean \u2014 is_primitive.",
         "primitivization": "text \u2014 primitivization.",
         "group_num": "smallint \u2014 group_num."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"group\" must always be double-quoted in SQL. Example: WHERE \"group\" = value, SELECT \"group\". | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"BelyiDB_plabel\"."
     },
     "belyi_specializations": {
       "description": "Specialisations of Belyi maps.",
@@ -1814,7 +1847,8 @@
         "conductor_norm": "numeric \u2014 conductor_norm.",
         "cardinality": "integer \u2014 cardinality.",
         "upload_id": "bigint \u2014 upload_id."
-      }
+      },
+      "warning": "CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"Elabel\"."
     },
     "modcurve_modelmaps": {
       "description": "Maps between models of modular curves.",
@@ -2007,7 +2041,7 @@
         "dihedral": "boolean \u2014 dihedral.",
         "familial": "boolean \u2014 familial."
       },
-      "warning": "'order' is a reserved SQL keyword \u2014 always quote as \"order\"."
+      "warning": "'order' is a reserved SQL keyword \u2014 always quote as \"order\". | RESERVED KEYWORDS \u2014 must always be double-quoted in SQL: \"name\", \"order\". Example: SELECT \"name\", \"order\" FROM gps_groups WHERE \"name\" = ... | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"Agroup\", \"Zgroup\", \"irrC_degree\", \"irrQ_degree\", \"linC_degree\", \"linFp_degree\", \"linFq_degree\", \"linQ_degree\", \"irrQ_dim\", \"linQ_dim\", \"linQ_dim_count\", \"linQ_degree_count\", \"linC_count\", \"linR_count\", \"linR_degree\", \"irrR_degree\"."
     },
     "gps_subgroup_data": {
       "description": "Subgroup lattice data for abstract finite groups.",
@@ -2063,7 +2097,7 @@
         "centralizer": "text \u2014 Centralizer group label.",
         "label": "text \u2014 Conjugacy class label."
       },
-      "warning": "'order' is a reserved SQL keyword \u2014 always quote as \"order\"."
+      "warning": "'order' is a reserved SQL keyword \u2014 always quote as \"order\". | RESERVED KEYWORDS \u2014 must always be double-quoted in SQL: \"order\", \"size\". Example: SELECT \"order\", \"size\" FROM gps_conj_classes WHERE \"order\" = ..."
     },
     "gps_transitive": {
       "description": "Transitive subgroups of S_n classified as Galois groups.",
@@ -2098,7 +2132,7 @@
         "aut_label": "text \u2014 aut_label.",
         "transitivity": "smallint \u2014 transitivity."
       },
-      "warning": "'order' is a reserved SQL keyword \u2014 always quote as \"order\"."
+      "warning": "'order' is a reserved SQL keyword \u2014 always quote as \"order\". | RESERVED KEYWORDS \u2014 must always be double-quoted in SQL: \"name\", \"order\". Example: SELECT \"name\", \"order\" FROM gps_transitive WHERE \"name\" = ..."
     },
     "gps_st": {
       "description": "Sato-Tate groups with moment data.",
@@ -2135,7 +2169,8 @@
         "zvector": "smallint[] \u2014 zvector.",
         "component_group_number": "smallint \u2014 component_group_number.",
         "label_components": "integer[] \u2014 label_components."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"name\" must always be double-quoted in SQL. Example: WHERE \"name\" = value, SELECT \"name\"."
     },
     "gps_gl2zhat": {
       "description": "Subgroups of GL_2(Z_hat) for modular curve classification.",
@@ -2223,7 +2258,8 @@
         "lattice_x": "integer[] \u2014 lattice_x.",
         "curve_label": "text \u2014 curve_label.",
         "models": "smallint \u2014 models."
-      }
+      },
+      "warning": "RESERVED KEYWORDS \u2014 must always be double-quoted in SQL: \"level\", \"index\", \"name\". Example: SELECT \"level\", \"index\", \"name\" FROM gps_gl2zhat WHERE \"level\" = ... | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"CPlabel\", \"Slabel\", \"SZlabel\", \"RZBlabel\", \"RSZBlabel\", \"Glabel\"."
     },
     "gps_qchar": {
       "description": "Rational characters of abstract finite groups.",
@@ -2241,7 +2277,8 @@
         "qvalues": "integer[] \u2014 qvalues.",
         "schur_index": "integer \u2014 Schur index.",
         "group_order": "numeric \u2014 group_order."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"group\" must always be double-quoted in SQL. Example: WHERE \"group\" = value, SELECT \"group\"."
     },
     "gps_char": {
       "description": "Complex characters of abstract finite groups.",
@@ -2268,7 +2305,8 @@
         "center_index": "numeric \u2014 center_index.",
         "group_counter": "integer \u2014 group_counter.",
         "image_isoclass": "text \u2014 image_isoclass."
-      }
+      },
+      "warning": "RESERVED KEYWORDS \u2014 must always be double-quoted in SQL: \"group\", \"values\". Example: SELECT \"group\", \"values\" FROM gps_char WHERE \"group\" = ..."
     },
     "gps_small": {
       "description": "Small groups of order at most 2000.",
@@ -2292,7 +2330,7 @@
         "clases": "jsonb \u2014 clases.",
         "image_number": "integer \u2014 image_number."
       },
-      "warning": "'order' is a reserved SQL keyword \u2014 always quote as \"order\"."
+      "warning": "'order' is a reserved SQL keyword \u2014 always quote as \"order\". | RESERVED KEYWORDS \u2014 must always be double-quoted in SQL: \"name\", \"order\". Example: SELECT \"name\", \"order\" FROM gps_small WHERE \"name\" = ..."
     },
     "gps_families": {
       "description": "Named families of groups.",
@@ -2305,7 +2343,8 @@
         "tex_name": "text \u2014 LaTeX name.",
         "magma_cmd": "text \u2014 magma_cmd.",
         "input": "text \u2014 input."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"name\" must always be double-quoted in SQL. Example: WHERE \"name\" = value, SELECT \"name\"."
     },
     "gps_special_names": {
       "description": "Special names for well-known groups.",
@@ -2325,7 +2364,8 @@
         "num_orbits": "smallint \u2014 num_orbits.",
         "weight": "smallint \u2014 Weight k.",
         "level": "integer \u2014 Level N."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"level\" must always be double-quoted in SQL. Example: WHERE \"level\" = value, SELECT \"level\"."
     },
     "hecke_orbits": {
       "description": "Hecke algebra orbits within newspaces.",
@@ -2343,7 +2383,8 @@
         "Qbasis": "jsonb \u2014 Qbasis.",
         "level": "integer \u2014 Level.",
         "num_hecke_op": "integer \u2014 num_hecke_op."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"level\" must always be double-quoted in SQL. Example: WHERE \"level\" = value, SELECT \"level\". | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"Zbasis\", \"Qalg_gen\", \"Qbasis\"."
     },
     "hecke_ladic": {
       "description": "l-adic Hecke algebras for newspaces.",
@@ -2361,7 +2402,8 @@
         "num_charpoly_ql": "smallint \u2014 Number of charpolys mod ql.",
         "properties": "jsonb \u2014 Properties.",
         "structure": "jsonb \u2014 Structure."
-      }
+      },
+      "warning": "RESERVED KEYWORDS \u2014 must always be double-quoted in SQL: \"index\", \"level\". Example: SELECT \"index\", \"level\" FROM hecke_ladic WHERE \"index\" = ..."
     },
     "hgcwa_passports": {
       "description": "Passports for higher genus curves with automorphisms.",
@@ -2393,7 +2435,8 @@
         "braid": "integer[] \u2014 Braid indices.",
         "topological": "integer[] \u2014 Topological indices.",
         "realcc": "integer[] \u2014 Real conjugacy class indices."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"group\" must always be double-quoted in SQL. Example: WHERE \"group\" = value, SELECT \"group\". | CASE-SENSITIVE COLUMNS \u2014 PostgreSQL folds unquoted identifiers to lowercase. These columns must be double-quoted: \"signH\"."
     },
     "hgcwa_unique_groups": {
       "description": "Unique automorphism groups for higher genus curves.",
@@ -2406,7 +2449,8 @@
         "gen_vectors": "integer \u2014 Number of generating vector classes.",
         "topological": "integer \u2014 Number of topological classes.",
         "braid": "integer \u2014 Number of braid classes."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"group\" must always be double-quoted in SQL. Example: WHERE \"group\" = value, SELECT \"group\"."
     },
     "lat_lattices": {
       "description": "Integral lattices with Gram matrix and theta series.",
@@ -2430,7 +2474,8 @@
         "class_number": "smallint \u2014 Class number in genus.",
         "shortest": "jsonb \u2014 Shortest vectors.",
         "gram": "jsonb \u2014 Gram matrix."
-      }
+      },
+      "warning": "RESERVED KEYWORDS \u2014 must always be double-quoted in SQL: \"name\", \"index\", \"level\". Example: SELECT \"name\", \"index\", \"level\" FROM lat_lattices WHERE \"name\" = ..."
     },
     "cluster_pictures": {
       "description": "Cluster pictures for hyperelliptic curves at bad primes.",
@@ -2445,7 +2490,8 @@
         "potential_good_reduction": "boolean \u2014 Whether potential good reduction.",
         "potential_good_jacobian_reduction": "boolean \u2014 Whether Jacobian has potential good reduction.",
         "thumbnail": "text \u2014 Thumbnail image."
-      }
+      },
+      "warning": "RESERVED KEYWORD \u2014 column \"size\" must always be double-quoted in SQL. Example: WHERE \"size\" = value, SELECT \"size\"."
     }
   }
 }
