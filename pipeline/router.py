@@ -53,7 +53,7 @@ def route(query: str, history: str = "") -> list[str]:
     client = Anthropic()
     r = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=512,
+        max_tokens=1024,
         system=system,
         messages=[{"role": "user", "content": query}]
     )
