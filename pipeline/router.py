@@ -79,5 +79,5 @@ def _parse(text: str) -> dict:
     if match:
         return json.loads(match.group())
     raise ValueError(
-        f"Could not extract JSON from router response.\nRaw text:\n{text[:500]}"
-    )Could not extract JSON from router response. Raw text:\n{text[:500]}")
+        "Could not extract JSON from router response. Raw text:\n" + text[:500]
+    )
