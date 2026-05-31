@@ -88,4 +88,4 @@ conductor/
 -  Conductor is under active development, and thus you may encounter occasional errors or unexpected behaviour. If you do, please open a GitHub issue to report it. 
 
 # Acknowledgements 🌲
-This work would be impossible without the work of hundreds of mathematicians on the LMFDB. See [lmfdb.org/acknowledgment](https://www.lmfdb.org/acknowledgment) for the full list of contributors.
+This work would be impossible without the collective work of hundreds of mathematicians in computing and curating the data which is available on the LMFDB. See [lmfdb.org/acknowledgment](https://www.lmfdb.org/acknowledgment) for a list of contributors.
