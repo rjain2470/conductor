@@ -6,15 +6,15 @@ Given a query in plain English, Conductor identifies and retrieves the relevant 
 
 For instance, a mathematician can directly ask Conductor the following questions:
 
-> "Can you plot the regulator against the conductor for the rank-1 elliptic curves over Q with conductor under 10,000 on a log-log scale?"
+**"Can you plot the regulator against the conductor for the rank-1 elliptic curves over Q with conductor under 10,000 on a log-log scale?"**
 
-> "Plot the real period vs the analytic order of Sha for elliptic curves of rank 2 with conductor under 5,000."
+**"Plot the real period vs the analytic order of Sha for elliptic curves of rank 2 with conductor under 5,000."**
 
-> "Which semistable elliptic curves have prime conductor under 500 and non-trivial torsion? Show me the distribution of torsion subgroup structures."
+**"Which semistable elliptic curves have prime conductor under 500 and non-trivial torsion? Show me the distribution of torsion subgroup structures."**
 
-> "I'm interested in the relationship between regulator and discriminant for totally real cubic fields of class number 1 — can you pull those and plot them on a log-log scale?"
+**"I'm interested in the relationship between regulator and discriminant for totally real cubic fields of class number 1 — can you pull those and plot them on a log-log scale?"**
 
-> "Give me a table of the weight-2 newforms with CM at squarefree levels under 500."
+**"Give me a table of the weight-2 newforms with CM at squarefree levels under 500."**
 
 By utilizing modern methods in prompt engineering, text-to-SQL, and AI-powered data analysis, Conductor allows users to spend less time navigating databases and more time exploring mathematical questions.
 
@@ -29,7 +29,7 @@ TBD.
 
 # Architecture 🏛️
 <img align="right" width="300" src="assets/conductor_flowchart.png" alt="Conductor architecture diagram" />
-Conductor is a five-stage FastAPI pipeline with error handling. As of June 2026, we use claude-sonnet-4-6 for every step apart from the second one, which instead uses claude-haiku-4.5 to optimize for latency and token spend. It works as follows:
+Conductor is a five-stage FastAPI pipeline with error handling. As of June 2026, we use claude-sonnet-4-6 for every step apart from the second one, which instead uses claude-haiku-4-5 to optimize for latency and token spend. It works as follows:
 
 1. An LLM-as-judge assesses query precision before any database interaction. If the query is ambiguous in a way that would materially change what is queried, it asks one focused question. If clear, it returns a refined restatement passed to all subsequent stages.
 2. An LLM maps the query to a list of relevant LMFDB table names using a two-layer hierarchical schema index.
