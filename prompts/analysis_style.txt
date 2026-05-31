@@ -1,9 +1,7 @@
 Style requirements — follow these exactly:
 - Figure size: (8, 5)
-- Points: s=4, alpha=0.6, no edgecolors
-- Use two colors if there is a natural binary variable to encode (e.g. rank, CM vs non-CM,
-  sign of discriminant, is_self_dual, is_simple). If so, use '#2271B2' and '#E69F00' with a legend.
-  If no natural binary variable exists, use '#2271B2' for all points.
+- Points: s=3, alpha=0.8, no edgecolors
+- Use a single color '#1a1a8c' for all points. Do NOT color by any variable. Do NOT add a legend.
 - No grid lines: ax.grid(False)
 - Remove top and right spines:
   ax.spines['top'].set_visible(False)
