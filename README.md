@@ -34,8 +34,8 @@ The LMFDB contains the following 86 tables across 16 mathematical domains:
 | Dirichlet characters | char_dirichlet |
 | Hypergeometric motives | hgm_families, hgm_motives, hgm_monodromy, hgm_euler_survey |
 | Modular curves | modcurve_models, modcurve_points, modcurve_modelmaps |
-| Groups | gps_groups, gps_transitive, gps_st, gps_char, gps_small (and more) |
-| Lattices and other | lat_lattices, cluster_pictures, hgcwa_passports, belyi_galmaps, etc. |
+| Groups | gps_groups, gps_transitive, gps_st, etc. |
+| Lattices and other | lat_lattices, cluster_pictures, hgcwa_passports, etc. |
 
 # Setup 
 
