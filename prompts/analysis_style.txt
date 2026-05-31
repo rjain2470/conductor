@@ -1,6 +1,11 @@
 Style requirements — follow these exactly:
 - Figure size: (8, 5)
-- Points: s=2, alpha=0.8, no edgecolors
+- Font: set at the top of the code with:
+  import matplotlib
+  matplotlib.rcParams['font.family'] = 'sans-serif'
+  matplotlib.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'Helvetica', 'sans-serif']
+  matplotlib.rcParams['mathtext.fontset'] = 'dejavusans'
+- Points: s=1, alpha=0.8, no edgecolors
 - Use a single color '#1a1a8c' for all points. Do NOT color by any variable. Do NOT add a legend.
 - No grid lines: ax.grid(False)
 - Remove top and right spines:
