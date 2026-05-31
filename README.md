@@ -1,29 +1,47 @@
 # Conductor 🔋
 
-Conductor is a natural language interface to the LMFDB (L-functions and Modular Forms Database). It translates mathematical questions into SQL, executes them against the LMFDB PostgreSQL database, and returns structured data with optional exploratory analysis and plots.
+Conductor is a natural language interface to the [LMFDB](https://www.lmfdb.org) (L-functions and Modular Forms Database). It translates mathematical questions into SQL, executes them against the LMFDB PostgreSQL database, and returns structured data with optional exploratory analysis and plots.
 
 For instance, rather than navigating the LMFDB or constructing SQL queries by hand, a mathematician can ask Conductor:
 
-"Can you plot the regulator against the conductor for the rank-1 elliptic curves over Q with conductor under 10,000 on a log-log scale?"
+> "Can you plot the regulator against the conductor for the rank-1 elliptic curves over Q with conductor under 10,000 on a log-log scale?"
 
-"Plot the real period vs the analytic order of Sha for elliptic curves of rank 2 with conductor under 5,000."
+> "Plot the real period vs the analytic order of Sha for elliptic curves of rank 2 with conductor under 5,000."
 
-"Which semistable elliptic curves have prime conductor under 500 and non-trivial torsion? Show me the distribution of torsion subgroup structures."
+> "Which semistable elliptic curves have prime conductor under 500 and non-trivial torsion? Show me the distribution of torsion subgroup structures."
 
-"I'm interested in the relationship between regulator and discriminant for totally real cubic fields of class number 1 — can you pull those and plot them on a log-log scale?"
+> "I'm interested in the relationship between regulator and discriminant for totally real cubic fields of class number 1 — can you pull those and plot them on a log-log scale?"
 
-"Give me a table of the weight-2 newforms with CM at squarefree levels under 500."
+> "Give me a table of the weight-2 newforms with CM at squarefree levels under 500."
 
 
 # Database coverage 📊
 The LMFDB contains the following 86 tables across 16 mathematical domains:
-DomainTablesClassical modular formsmf_newforms, mf_newspaces, mf_hecke_, mf_twists_, mf_gamma1, mf_starkMaass formsmaass_newforms, maass_rigor (and coefficient tables)Hilbert / Bianchi / Siegel modular formshmf_forms, bmf_forms, smf_samples (and auxiliary tables)Other modular formshalfmf_forms, modlmf_forms, modlgal_repsL-functionslfunc_lfunctions, lfunc_search, lfunc_instancesElliptic curves over Qec_curvedata, ec_mwbsd, ec_localdata, ec_classdata, ec_galrep, ec_padic, ec_iwasawa, ec_torsion_growthElliptic curves over number fieldsec_nfcurvesGenus-2 curvesg2c_curves, g2c_endomorphisms, g2c_galrep, g2c_ratpts, g2c_tamagawaAbelian varieties over finite fieldsav_fq_isog, av_fq_endalg_data, av_fq_endalg_factorsNumber fieldsnf_fields, nf_fields_extra, nf_fields_reflexLocal fields and finite fieldslf_fields, lf_families, fq_fieldsArtin representationsartin_reps, artin_field_dataDirichlet characterschar_dirichletHypergeometric motiveshgm_families, hgm_motives, hgm_monodromy, hgm_euler_surveyModular curvesmodcurve_models, modcurve_points, modcurve_modelmapsGroupsgps_groups, gps_transitive, gps_st, gps_char, gps_small (and more)Lattices and otherlat_lattices, cluster_pictures, hgcwa_passports, belyi_galmaps, etc.
+| Domain | Tables |
+|--------|--------|
+| Classical modular forms | mf_newforms, mf_newspaces, mf_hecke_\*, mf_twists_\*, mf_gamma1, mf_stark |
+| Maass forms | maass_newforms, maass_rigor (and coefficient tables) |
+| Hilbert / Bianchi / Siegel modular forms | hmf_forms, bmf_forms, smf_samples (and auxiliary tables) |
+| Other modular forms | halfmf_forms, modlmf_forms, modlgal_reps |
+| L-functions | lfunc_lfunctions, lfunc_search, lfunc_instances |
+| Elliptic curves over Q | ec_curvedata, ec_mwbsd, ec_localdata, ec_classdata, ec_galrep, ec_padic, ec_iwasawa, ec_torsion_growth |
+| Elliptic curves over number fields | ec_nfcurves |
+| Genus-2 curves | g2c_curves, g2c_endomorphisms, g2c_galrep, g2c_ratpts, g2c_tamagawa |
+| Abelian varieties over finite fields | av_fq_isog, av_fq_endalg_data, av_fq_endalg_factors |
+| Number fields | nf_fields, nf_fields_extra, nf_fields_reflex |
+| Local fields and finite fields | lf_fields, lf_families, fq_fields |
+| Artin representations | artin_reps, artin_field_data |
+| Dirichlet characters | char_dirichlet |
+| Hypergeometric motives | hgm_families, hgm_motives, hgm_monodromy, hgm_euler_survey |
+| Modular curves | modcurve_models, modcurve_points, modcurve_modelmaps |
+| Groups | gps_groups, gps_transitive, gps_st, gps_char, gps_small (and more) |
+| Lattices and other | lat_lattices, cluster_pictures, hgcwa_passports, belyi_galmaps, etc. |
 
 # Setup 
 
 ## Prerequisites 🟡
-Python 3.12+
-Access to the LMFDB PostgreSQL mirror (default: devmirror.lmfdb.xyz)
+- Python 3.12+
+- Access to the LMFDB PostgreSQL mirror (default: `devmirror.lmfdb.xyz`)
 
 ## Installation 🔌
 TBD.
@@ -35,7 +53,7 @@ Conductor is a five-stage FastAPI pipeline with graceful error handling. As of J
 2. An LLM maps the query to a list of relevant LMFDB table names using a two-layer hierarchical schema index.
 3. Our LLM produces a validated SQL query using only the schema slice for the tables identified in Stage 2, keeping prompt size proportional to query complexity. Correctness is enforced by using our preloaded schema as a ground truth.
 4. We run the SQL over a read-only SQLAlchemy connection with a 15-second timeout, returning a pandas DataFrame.
-5. (optional) We translate a follow-up natural language instruction into Python, which is executed in a restricted exec() namespace. Plots are captured in-memory and returned as base64-encoded PNGs.
+5. *(optional)* We translate a follow-up natural language instruction into Python, which is executed in a restricted exec() namespace. Plots are captured in-memory and returned as base64-encoded PNGs.
 
 ## Project structure 🏗️
 conductor/
@@ -64,8 +82,8 @@ conductor/
 
 # Limitations 🟥
 - The server connects to devmirror.lmfdb.xyz, which may only have partial coverage compared to the full LMFDB. Moreover, since the LMFDB itself is not fully comprehensive, some data may be unavailable.
-- Queries are subject to API rate limits; responses may slow under heavy load.
--  Conductor is under active development. You may encounter occasional errors or unexpected behaviour — if you do, please open a GitHub issue to report it. 
+- Queries are subject to API rate limits. Therefore, responses may slow under heavy load.
+-  Conductor is under active development, and thus you may encounter occasional errors or unexpected behaviour. If you do, please open a GitHub issue to report it. 
 
 # Acknowledgements 🌲
-This work would be impossible without the work of hundreds of mathematicians in creating the LMFDB. See lmfdb.org/acknowledgment for the full list of contributors.
+This work would be impossible without the work of hundreds of mathematicians on the LMFDB. See [lmfdb.org/acknowledgment](https://www.lmfdb.org/acknowledgment) for the full list of contributors.
