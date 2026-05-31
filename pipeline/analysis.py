@@ -12,10 +12,17 @@ from typing import Optional
 from anthropic import Anthropic
 
 _prompt_path = Path(__file__).parent.parent / "prompts" / "analysis_prompt.txt"
+_style_path = Path(__file__).parent.parent / "prompts" / "analysis_style.txt"
 
 def _load_prompt() -> str:
     with open(_prompt_path) as f:
-        return f.read()
+        base = f.read()
+    try:
+        with open(_style_path) as f:
+            style = f.read()
+        return base + "\n" + style
+    except FileNotFoundError:
+        return base
 
 _PROMPT_TEMPLATE = _load_prompt()
 
