@@ -56,10 +56,11 @@ Conductor is a five-stage FastAPI pipeline with graceful error handling. As of J
 5. *(optional)* We translate a follow-up natural language instruction into Python, which is executed in a restricted exec() namespace. Plots are captured in-memory and returned as base64-encoded PNGs.
 
 ## Project structure 🏗️
+```
 conductor/
-├── main.py                  # FastAPI app, endpoints, auth, rate limiting.
+├── main.py                  # FastAPI app, endpoints, auth, rate limiting
 ├── pipeline/
-│   ├── router.py            # Stage 2: NL query → table names 
+│   ├── router.py            # Stage 2: NL query → table names
 │   ├── sql_gen.py           # Stage 3: query + tables → validated SQL
 │   ├── executor.py          # Stage 4: SQL → DataFrame
 │   ├── analysis.py          # Stage 5: instruction + DataFrame → plot
@@ -79,6 +80,7 @@ conductor/
 ├── .env.example
 ├── requirements.txt
 └── README.md
+```
 
 # Limitations 🟥
 - The server connects to devmirror.lmfdb.xyz, which may only have partial coverage compared to the full LMFDB. Moreover, since the LMFDB itself is not fully comprehensive, some data may be unavailable.
