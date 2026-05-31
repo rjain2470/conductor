@@ -31,7 +31,7 @@ Conductor is a five-stage FastAPI pipeline with graceful error handling. As of J
 2. An LLM maps the query to a list of relevant LMFDB table names using a two-layer hierarchical schema index.
 3. Our LLM produces a validated SQL query using only the schema slice for the tables identified in Stage 2, keeping prompt size proportional to query complexity. Correctness is enforced by using our preloaded schema as a ground truth.
 4. We run the SQL over a read-only SQLAlchemy connection with a 15-second timeout, returning a pandas DataFrame.
-5. *(optional)* We translate a follow-up natural language instruction into Python, which is executed in a restricted exec() namespace. Plots are captured in-memory and returned as base64-encoded PNGs.
+5. *(optional)* We translate a follow-up natural language instruction into Python. Plots are then captured in-memory and returned as base64-encoded PNGs.
 
 # Database coverage 📊
 The LMFDB contains the following 86 tables across 16 mathematical domains:
