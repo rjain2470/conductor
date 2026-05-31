@@ -35,3 +35,7 @@ Do not wrap in markdown, do not use backticks, do not add any text before or aft
 
 ## Schema for relevant tables
 <<SCHEMA>>
+
+- lfunc_lfunctions: symmetry_type valid values are 'symplectic', 'orthogonal', 'unitary' (sparse — always add IS NOT NULL).
+  lfunc_search has NO symmetry_type column — use lfunc_lfunctions for symmetry filtering.
+  Example: WHERE symmetry_type IS NOT NULL AND symmetry_type = 'symplectic'

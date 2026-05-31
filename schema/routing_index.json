@@ -53,9 +53,9 @@
     "l_functions": {
       "description": "L-functions and their instances. Use lfunc_search for filtered searches; lfunc_lfunctions for full data; lfunc_instances to join L-functions to source objects.",
       "tables": {
-        "lfunc_lfunctions": "Full L-function data; label, Lhash, degree, conductor, motivic_weight, root_number (text), symmetry_type, order_of_vanishing, primitive, self_dual, algebraic, st_group, positive_zeros, z1, z2, z3, dirichlet_coefficients, a2-a10, A2-A10, gamma_factors",
-        "lfunc_search": "Search-optimised L-function view; label, degree, conductor, order_of_vanishing, primitive, self_dual, algebraic, rational, symmetry_type, z1, root_angle, is_instance_CMF, is_instance_ECQ, is_instance_Artin, euler2 through euler97",
-        "lfunc_instances": "Object-to-L-function links; label, Lhash, type (CMF/EC/G2C/NF/DIR/Artin), url — join key between source objects and lfunc_lfunctions"
+        "lfunc_lfunctions": "Full L-function data; label, Lhash, degree, conductor, motivic_weight, root_number (text), symmetry_type ('symplectic'/'orthogonal'/'unitary', sparse), order_of_vanishing, primitive, self_dual, algebraic, st_group, positive_zeros, z1, z2, z3, dirichlet_coefficients, a2-a10, A2-A10, gamma_factors",
+        "lfunc_search": "Search-optimised L-function view; label, degree, conductor, order_of_vanishing, primitive, self_dual, algebraic, rational, z1, root_angle, is_instance_CMF, is_instance_ECQ, is_instance_Artin, euler2 through euler97 \u2014 NOTE: no symmetry_type column in this table",
+        "lfunc_instances": "Object-to-L-function links; label, Lhash, type (CMF/EC/G2C/NF/DIR/Artin), url \u2014 join key between source objects and lfunc_lfunctions"
       }
     },
     "elliptic_curves": {
@@ -63,7 +63,7 @@
       "tables": {
         "ec_curvedata": "Elliptic curves over Q; PRIMARY KEY lmfdb_label (e.g. 11.a1); conductor, rank, analytic_rank, torsion (NOT torsion_order), torsion_structure, cm, sha, regulator, squarefree_disc, semistable, szpiro_ratio, abc_quality, nonmax_primes, faltings_height",
         "ec_classdata": "Isogeny classes; lmfdb_iso, conductor, class_size, class_deg, isogeny_matrix, aplist",
-        "ec_mwbsd": "Mordell-Weil and BSD; lmfdb_label, gens, heights, ngens, real_period (numeric), sha_an (numeric), special_value (numeric), tamagawa_product — all three are plain numeric NOT jsonb",
+        "ec_mwbsd": "Mordell-Weil and BSD; lmfdb_label, gens, heights, ngens, real_period (numeric), sha_an (numeric), special_value (numeric), tamagawa_product \u2014 all three are plain numeric NOT jsonb",
         "ec_localdata": "Local reduction at bad primes; lmfdb_label, prime, reduction_type, root_number, kodaira_symbol, tamagawa_number",
         "ec_galrep": "Galois representations; lmfdb_label, prime, elladic_image, modell_image, adelic_image",
         "ec_padic": "p-adic L-functions; lmfdb_iso, p, unit, val",
@@ -101,7 +101,7 @@
     "local_fields": {
       "description": "p-adic local fields and finite fields.",
       "tables": {
-        "lf_fields": "p-adic local fields; label, p (prime), n (degree), e (ramification), f (residue degree), c (discriminant exp), galois_label, slopes, top_slope, is_completion — NOTE: single-letter column names",
+        "lf_fields": "p-adic local fields; label, p (prime), n (degree), e (ramification), f (residue degree), c (discriminant exp), galois_label, slopes, top_slope, is_completion \u2014 NOTE: single-letter column names",
         "lf_families": "p-adic field families; label, p, n, e, f, c, field_count, packet_count",
         "fq_fields": "Finite fields F_q; characteristic, degree, conway (1=Conway poly), polynomial"
       }
@@ -109,8 +109,8 @@
     "artin_representations": {
       "description": "Artin representations rho: Gal(Kbar/Q) -> GL_n(C). CRITICAL: all column names are CamelCase.",
       "tables": {
-        "artin_reps": "Artin representations; Baselabel, Dim (dimension), Conductor (numeric), GaloisLabel, Galn, Galt, Indicator (1=orthogonal,-1=symplectic,0=unitary), Is_Even, BadPrimes, NumBadPrimes, CharacterField — ALL COLUMN NAMES ARE CamelCase",
-        "artin_field_data": "Splitting field data; Polynomial, TransitiveDegree, Size, ConjClasses, ArtinReps, FrobResolvents, ComplexConjugation — ALL COLUMN NAMES ARE CamelCase"
+        "artin_reps": "Artin representations; Baselabel, Dim (dimension), Conductor (numeric), GaloisLabel, Galn, Galt, Indicator (1=orthogonal,-1=symplectic,0=unitary), Is_Even, BadPrimes, NumBadPrimes, CharacterField \u2014 ALL COLUMN NAMES ARE CamelCase",
+        "artin_field_data": "Splitting field data; Polynomial, TransitiveDegree, Size, ConjClasses, ArtinReps, FrobResolvents, ComplexConjugation \u2014 ALL COLUMN NAMES ARE CamelCase"
       }
     },
     "dirichlet_characters": {

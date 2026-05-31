@@ -164,7 +164,7 @@
         "self_dual": "boolean \u2014 Whether L(s) equals its own dual.",
         "algebraic": "boolean \u2014 Whether L-function is algebraic.",
         "rational": "boolean \u2014 Whether coefficients are rational.",
-        "symmetry_type": "text \u2014 Katz-Sarnak symmetry type: unitary, symplectic, orthogonal, SO(even), SO(odd).",
+        "symmetry_type": "text \u2014 Katz-Sarnak symmetry type. SPARSE: NULL for most rows on the dev mirror. Valid values: 'symplectic', 'orthogonal', 'unitary'. Always add IS NOT NULL when filtering: WHERE symmetry_type IS NOT NULL AND symmetry_type = 'symplectic'.",
         "st_group": "text \u2014 Sato-Tate group label.",
         "group": "text \u2014 Group label.",
         "types": "jsonb \u2014 L-function type tags.",
