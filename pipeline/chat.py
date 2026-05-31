@@ -67,7 +67,6 @@ _MSG_RATE_LIMITED = (
     "Please wait a moment and try again."
 )
 
-
 class LMFDBChat:
 
     def __init__(self):
@@ -293,11 +292,14 @@ class LMFDBChat:
 
 
 def _rate_limit_or(exc: Exception, fallback: str) -> str:
-    """Return a rate limit message if the exception is a rate limit error,
-    otherwise return the fallback message."""
     msg = str(exc)
     if "rate_limit" in msg.lower() or "429" in msg:
         return _MSG_RATE_LIMITED
+    if "credit balance" in msg.lower() or "too low" in msg.lower() or "402" in msg:
+        return (
+            "We apologize, but Conductor is temporarily unavailable due to a "
+            "service issue on our end. Please check back later."
+        )
     return fallback
 
 
