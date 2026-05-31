@@ -14,6 +14,23 @@ For instance, rather than navigating the LMFDB or constructing SQL queries by ha
 
 > "Give me a table of the weight-2 newforms with CM at squarefree levels under 500."
 
+# Setup 
+
+## Prerequisites 🟡
+- Python 3.12+
+- Access to the LMFDB PostgreSQL mirror (default: `devmirror.lmfdb.xyz`)
+
+## Installation 🔌
+TBD.
+
+# Architecture 🏛️
+Conductor is a five-stage FastAPI pipeline with graceful error handling. As of June 2026, we use claude-sonnet-4-6 for every step apart from the second one, which instead uses the cheaper claude-haiku-4.5 to optimize for latency and token spend.
+
+1. An LLM-as-judge assesses query precision before any database interaction. If the query is ambiguous in a way that would materially change what is queried, it asks one focused question. If clear, it returns a refined restatement passed to all subsequent stages.
+2. An LLM maps the query to a list of relevant LMFDB table names using a two-layer hierarchical schema index.
+3. Our LLM produces a validated SQL query using only the schema slice for the tables identified in Stage 2, keeping prompt size proportional to query complexity. Correctness is enforced by using our preloaded schema as a ground truth.
+4. We run the SQL over a read-only SQLAlchemy connection with a 15-second timeout, returning a pandas DataFrame.
+5. *(optional)* We translate a follow-up natural language instruction into Python, which is executed in a restricted exec() namespace. Plots are captured in-memory and returned as base64-encoded PNGs.
 
 # Database coverage 📊
 The LMFDB contains the following 86 tables across 16 mathematical domains:
@@ -36,24 +53,6 @@ The LMFDB contains the following 86 tables across 16 mathematical domains:
 | Modular curves | modcurve_models, modcurve_points, modcurve_modelmaps. |
 | Groups | gps_groups, gps_transitive, gps_st, etc. |
 | Lattices and other | lat_lattices, cluster_pictures, hgcwa_passports, etc. |
-
-# Setup 
-
-## Prerequisites 🟡
-- Python 3.12+
-- Access to the LMFDB PostgreSQL mirror (default: `devmirror.lmfdb.xyz`)
-
-## Installation 🔌
-TBD.
-
-# Architecture 🏛️
-Conductor is a five-stage FastAPI pipeline with graceful error handling. As of June 2026, we use claude-sonnet-4-6 for every step apart from the second one, which instead uses the cheaper claude-haiku-4.5 to optimize for latency and token spend.
-
-1. An LLM-as-judge assesses query precision before any database interaction. If the query is ambiguous in a way that would materially change what is queried, it asks one focused question. If clear, it returns a refined restatement passed to all subsequent stages.
-2. An LLM maps the query to a list of relevant LMFDB table names using a two-layer hierarchical schema index.
-3. Our LLM produces a validated SQL query using only the schema slice for the tables identified in Stage 2, keeping prompt size proportional to query complexity. Correctness is enforced by using our preloaded schema as a ground truth.
-4. We run the SQL over a read-only SQLAlchemy connection with a 15-second timeout, returning a pandas DataFrame.
-5. *(optional)* We translate a follow-up natural language instruction into Python, which is executed in a restricted exec() namespace. Plots are captured in-memory and returned as base64-encoded PNGs.
 
 ## Project structure 🏗️
 ```
