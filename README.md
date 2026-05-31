@@ -32,6 +32,8 @@ Conductor is a five-stage FastAPI pipeline with graceful error handling. As of J
 4. We run the SQL over a read-only SQLAlchemy connection with a 15-second timeout, returning a pandas DataFrame.
 5. *(optional)* We translate a follow-up natural language instruction into Python, which is executed in a restricted exec() namespace. Plots are captured in-memory and returned as base64-encoded PNGs.
 
+![Conductor architecture](assets/conductor_flowchart.png)
+
 # Database coverage 📊
 The LMFDB contains the following 86 tables across 16 mathematical domains:
 | Domain | Tables |
