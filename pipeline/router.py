@@ -4,6 +4,16 @@ Description: This file takes in the user's natural language query and returns a 
 It uses a two-layer hierarchical schema index (domains -> tables).  The model reasons about the domains, then the tables, within a single call. Runs on claude-haiku-4-5 for speed.
 """
 
+# pipeline/router.py
+# Stage 1: given a NL query, return the list of relevant LMFDB table names.
+#
+# Uses a two-layer hierarchical routing index (domains -> tables).
+# Runs on claude-haiku-4-5 for speed — routing is classification, not generation.
+# max_tokens=2048 gives room for brief reasoning before the JSON output.
+#
+# The _parse function tolerates reasoning text before the JSON object,
+# and raises a clear ValueError on empty or malformed responses.
+
 import json
 import re
 from pathlib import Path
@@ -23,21 +33,22 @@ _SYSTEM = """You are the routing layer of a natural language interface to the LM
 
 The schema is organized into domains. Each domain contains tables with brief descriptions of their key columns.
 
-Your task: given a user query, identify which specific tables are needed to answer it.
+Your task: identify which specific tables are needed to answer the user's query.
 
-Reason in two steps:
-1. Which domain or domains are relevant to this query?
-2. Within those domains, which specific tables are needed?
+Reasoning instructions:
+- Think briefly (2-3 sentences maximum) about which domain applies and which tables are needed.
+- Then immediately output the JSON object.
+- Do not write long explanations. Be concise.
 
-Then return ONLY a raw JSON object: {"tables": ["table_name", ...]}
-No markdown, no prose, no backticks — only the JSON object.
+Output format: ONLY a raw JSON object on the final line: {"tables": ["table_name", ...]}
+No markdown, no backticks — only the JSON object as the last thing you write.
 
 Rules:
-- Include all tables needed for joins between objects and their L-functions, Galois representations, etc.
-- Use the column hints to confirm a table is relevant before including it.
-- Note any CamelCase warnings (artin_reps, artin_field_data) and naming quirks (cond vs conductor).
+- Include all tables needed for joins.
+- Use column hints to confirm a table is relevant before including it.
 - Prefer precision: do not include tables speculatively.
 - Never include belyi_galmaps_prim — it does not exist in the database.
+- For murmuration queries (average a_p by rank): include ec_classdata and ec_curvedata.
 
 Schema index:
 """ + _ROUTING_INDEX
@@ -59,25 +70,37 @@ def route(query: str, history: str = "") -> list[str]:
 
 
 def _parse(text: str) -> dict:
-    """Extract JSON object from response, tolerating reasoning text around it."""
+    """
+    Extract JSON object from response, tolerating brief reasoning text before it.
+    Raises ValueError with a clear message on empty or malformed responses.
+    """
     text = text.strip()
     if not text:
         raise ValueError(
-            "Router returned empty response — model may have exceeded max_tokens."
+            "Router returned empty response. "
+            "The query may be too complex — try rephrasing it more concisely."
         )
-    # Strip markdown fences
+
+    # Strip markdown fences if present
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
     text = text.strip()
+
     # Try direct parse first
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
-    # Fall back: find the JSON object anywhere in the text
-    match = re.search(r'\{[^{}]*"tables"\s*:\s*\[.*?\]\s*\}', text, re.DOTALL)
+
+    # Fall back: find the JSON object anywhere in the text.
+    match = re.search(r'\{\s*"tables"\s*:\s*\[.*?\]\s*\}', text, re.DOTALL)
     if match:
-        return json.loads(match.group())
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+
     raise ValueError(
-        "Could not extract JSON from router response. Raw text:\n" + text[:500]
+        "Router could not identify relevant tables for this query."
+        "Try rephrasing or being more specific about the mathematical objects involved."
     )
