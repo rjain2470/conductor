@@ -1,0 +1,14 @@
+Style requirements — follow these exactly:
+- Figure size: (8, 5)
+- Points: s=4, alpha=0.6, no edgecolors
+- Use two colors if there is a natural binary variable to encode (e.g. rank, CM vs non-CM,
+  sign of discriminant, is_self_dual, is_simple). If so, use '#2271B2' and '#E69F00' with a legend.
+  If no natural binary variable exists, use '#2271B2' for all points.
+- No grid lines: ax.grid(False)
+- Remove top and right spines:
+  ax.spines['top'].set_visible(False)
+  ax.spines['right'].set_visible(False)
+- Tick direction inward: ax.tick_params(direction='in')
+- Font sizes: title 12, axis labels 11, ticks 9
+- plt.tight_layout()
+- Do NOT call plt.show()
