@@ -19,21 +19,21 @@ For instance, rather than navigating the LMFDB or constructing SQL queries by ha
 The LMFDB contains the following 86 tables across 16 mathematical domains:
 | Domain | Tables |
 |--------|--------|
-| Classical modular forms | mf_newforms, mf_gamma1, mf_stark, etc |
-| Maass forms | maass_newforms, maass_rigor|
-| Hilbert / Bianchi / Siegel modular forms | hmf_forms, bmf_forms, smf_samples |
-| Other modular forms | halfmf_forms, modlmf_forms, modlgal_reps |
-| L-functions | lfunc_lfunctions, lfunc_search, lfunc_instances |
+| Classical modular forms | mf_newforms, mf_gamma1, mf_stark, etc. |
+| Maass forms | maass_newforms, maass_rigor.|
+| Hilbert / Bianchi / Siegel modular forms | hmf_forms, bmf_forms, smf_samples. |
+| Other modular forms | halfmf_forms, modlmf_forms, modlgal_reps. |
+| L-functions | lfunc_lfunctions, lfunc_search, lfunc_instances. |
 | Elliptic curves over Q | ec_curvedata, ec_mwbsd, ec_localdata, ec_classdata, etc. |
-| Elliptic curves over number fields | ec_nfcurves |
+| Elliptic curves over number fields | ec_nfcurves. |
 | Genus-2 curves | g2c_curves, g2c_endomorphisms, etc. |
-| Abelian varieties over finite fields | av_fq_isog, av_fq_endalg_data, av_fq_endalg_factors |
-| Number fields | nf_fields, nf_fields_extra, nf_fields_reflex |
-| Local fields and finite fields | lf_fields, lf_families, fq_fields |
-| Artin representations | artin_reps, artin_field_data |
-| Dirichlet characters | char_dirichlet |
-| Hypergeometric motives | hgm_families, hgm_motives, hgm_monodromy, hgm_euler_survey |
-| Modular curves | modcurve_models, modcurve_points, modcurve_modelmaps |
+| Abelian varieties over finite fields | av_fq_isog, av_fq_endalg_data, av_fq_endalg_factors. |
+| Number fields | nf_fields, nf_fields_extra, nf_fields_reflex. |
+| Local fields and finite fields | lf_fields, lf_families, fq_fields. |
+| Artin representations | artin_reps, artin_field_data. |
+| Dirichlet characters | char_dirichlet. |
+| Hypergeometric motives | hgm_families, hgm_motives, hgm_monodromy, hgm_euler_survey. |
+| Modular curves | modcurve_models, modcurve_points, modcurve_modelmaps. |
 | Groups | gps_groups, gps_transitive, gps_st, etc. |
 | Lattices and other | lat_lattices, cluster_pictures, hgcwa_passports, etc. |
 
