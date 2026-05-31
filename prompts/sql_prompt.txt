@@ -32,6 +32,13 @@ Do not wrap in markdown, do not use backticks, do not add any text before or aft
   FrobResolvents, ComplexConjugation.
   Never use lowercase versions of these names.
 
+- artin_reps: ALL column names are CamelCase AND must be double-quoted in SQL to preserve case.
+  Example: SELECT "Baselabel", "Dim", "Conductor", "GaloisLabel", "Is_Even", "Indicator"
+           FROM artin_reps WHERE "Dim" = 2 AND "Conductor" < 500
+  Never use unquoted CamelCase column names for this table — PostgreSQL will fold them to lowercase.
+- artin_field_data: same rule — all CamelCase column names must be double-quoted.
+  Example: SELECT "Polynomial", "TransitiveDegree", "Size" FROM artin_field_data
+
 - mf_twists_cc / mf_twists_nf: "order" is a reserved SQL keyword here too.
   Always quote it as "order".
 
