@@ -24,6 +24,7 @@ For instance, rather than navigating the LMFDB or constructing SQL queries by ha
 TBD.
 
 # Architecture 🏛️
+<img align="right" width="300" src="assets/conductor_flowchart.png" alt="Conductor architecture diagram" />
 Conductor is a five-stage FastAPI pipeline with graceful error handling. As of June 2026, we use claude-sonnet-4-6 for every step apart from the second one, which instead uses the cheaper claude-haiku-4.5 to optimize for latency and token spend.
 
 1. An LLM-as-judge assesses query precision before any database interaction. If the query is ambiguous in a way that would materially change what is queried, it asks one focused question. If clear, it returns a refined restatement passed to all subsequent stages.
