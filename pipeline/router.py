@@ -61,7 +61,22 @@ def route(query: str, history: str = "") -> list[str]:
 
 
 def _parse(text: str) -> dict:
-    """Strip markdown fences if present and parse JSON."""
-    text = re.sub(r"^```(?:json)?\s*", "", text.strip())
+    """Extract JSON object from response, tolerating reasoning text around it."""
+    import re
+    text = text.strip()
+    if not text:
+        raise ValueError("Router returned empty response — increase max_tokens or simplify query.")
+    # Strip markdown fences
+    text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
-    return json.loads(text.strip())
+    text = text.strip()
+    # Try direct parse first
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    # Fall back: find the JSON object anywhere in the text
+    match = re.search(r'\{[^{}]*"tables"\s*:\s*\[.*?\]\s*\}', text, re.DOTALL)
+    if match:
+        return json.loads(match.group())
+    raise ValueError(f"Could not extract JSON from router response. Raw text:\n{text[:500]}")
