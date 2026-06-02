@@ -97,8 +97,8 @@ def resolve(query: str) -> tuple[str, dict | None]:
             value_repr = f"'{value}'"
 
         injected = (
-            f"{residual} "
-            f"[Look up in {table} WHERE {column} = {value_repr}]"
+            f"{query} "
+            f"[Resolved: look up in {table} WHERE {column} = {value_repr}]"
         )
 
         return injected, lookup
