@@ -36,20 +36,23 @@ Rules for elliptic curves given by Weierstrass equation y^2 + a1*x*y + a3*y = x^
 - table: "ec_curvedata", column: "ainvs"
 - Example: y^2 + xy + y = x^3 - x^2 - 3x + 3 → ainvs = [1, -1, 1, -3, 3]
 - Example: y^2 = x^3 - x → ainvs = [0, 0, 0, -1, 0]
+- Example: y^2 + y = x^3 - x^2 → ainvs = [0, -1, 1, 0, 0]
 
 Rules for number fields given by polynomial:
 - Extract coefficients lowest degree first as integers
 - table: "nf_fields", column: "coeffs"
 - Example: x^3 - x - 1 → coeffs = [-1, -1, 0, 1]
 - Example: x^4 - x - 1 → coeffs = [-1, -1, 0, 0, 1]
+- Example: x^2 - 5 → coeffs = [-5, 0, 1]
 
 Rules for LMFDB labels:
 - Newform label (N.k.c.x format e.g. 11.2.a.a): table "mf_newforms", column "label"
 - Dirichlet character label (q.n format e.g. 7.3): table "char_dirichlet", column "label"
-- Elliptic curve label (N.an format e.g. 11.a1): table "ec_curvedata", column "lmfdb_label"
-- Cremona label (e.g. 11a1): table "ec_curvedata", column "Clabel"
+- Elliptic curve LMFDB label (N.an format e.g. 11.a1): table "ec_curvedata", column "lmfdb_label"
+- Elliptic curve Cremona label (e.g. 11a1): table "ec_curvedata", column "Clabel"
 - Number field label (d.r.disc.n format e.g. 2.0.3.1): table "nf_fields", column "label"
 - Artin rep label: table "artin_reps", column "Baselabel"
+- Genus-2 curve label: table "g2c_curves", column "label"
 
 No markdown, no backticks, no prose — only the JSON object."""
 
@@ -60,7 +63,7 @@ def resolve(query: str) -> tuple[str, dict | None]:
 
     Returns:
         (resolved_query, lookup_info) where:
-        - resolved_query is the query rewritten to use database identifiers
+        - resolved_query is the query rewritten to include the database lookup
         - lookup_info is the lookup dict if an object was found, else None
 
     Fails open: returns (original_query, None) on any exception.
@@ -84,19 +87,18 @@ def resolve(query: str) -> tuple[str, dict | None]:
         if not lookup:
             return query, None
 
-        # Rewrite the query to inject the database lookup
         table = lookup["table"]
         column = lookup["column"]
         value = lookup["value"]
 
         if isinstance(value, list):
-            value_str = f"ARRAY{value}"
+            value_repr = f"ARRAY{value}::numeric[]"
         else:
-            value_str = f"'{value}'"
+            value_repr = f"'{value}'"
 
         injected = (
             f"{residual} "
-            f"[Look up in {table} WHERE {column} = {value_str}]"
+            f"[Look up in {table} WHERE {column} = {value_repr}]"
         )
 
         return injected, lookup
