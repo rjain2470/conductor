@@ -15,8 +15,6 @@ from pipeline.executor import execute_sql
 from pipeline.analysis import generate_analysis, execute_analysis
 from pipeline.lookup import resolve
 
-# ── System prompts ────────────────────────────────────────────────────────────
-
 _INTENT_SYSTEM = """You are Conductor, a mathematically knowledgeable assistant with access to the LMFDB (L-functions and Modular Forms Database). You have a warm, understated personality — think a good graduate student who knows their stuff and doesn't waste words.
 
 If someone greets you, chats, or thanks you, respond naturally and briefly as yourself. You can show a little personality. Don't be formal.
@@ -38,6 +36,7 @@ Return ONLY a raw JSON object:
 
 Flag ambiguity only when it would materially change what is queried.
 Do not ask for clarification that is not mathematically necessary.
+Do not mention or invent specific column names or table names in the refined_query.
 
 Conversation history so far:
 <<HISTORY>>"""
@@ -53,9 +52,8 @@ Examples of good closing lines:
 - "Found {rows} results — does that cover what you needed?"
 - "That's everything matching your query. Anything else?"
 - "Got {rows} — is that what you had in mind?"
+- "Here you go. Let me know if you'd like to dig further."
 """
-
-# ── Error messages ────────────────────────────────────────────────────────────
 
 _MSG_EMPTY_RESULT = (
     "The query executed successfully but returned no results. "
@@ -69,25 +67,26 @@ _MSG_SQL_FAILED = (
     "I was unable to generate a valid SQL query for your request. "
     "This sometimes happens for queries that span multiple tables in a complex way, "
     "or that reference invariants not directly stored in the database. "
-    "Could you rephrase your question, or ask for a simpler version to start?"
+    "Try rephrasing your question, or ask for a simpler version first."
 )
 
 _MSG_EXECUTION_FAILED = (
     "The query was generated but failed during execution. "
     "This is usually caused by a column name mismatch or an unsupported operation. "
-    "The error message was: {error}"
+    "The technical error was: {error}"
 )
 
 _MSG_ROUTER_FAILED = (
     "I was unable to identify which part of the LMFDB is relevant to your query. "
-    "Could you be a bit more specific?"
+    "Try being more specific about the mathematical objects you are interested in — "
+    "for example, 'elliptic curves over Q' rather than 'curves'."
 )
 
 _MSG_ANALYSIS_FAILED = (
     "I retrieved the data successfully ({rows} rows) but was unable to generate "
     "the analysis or plot you requested. "
     "The technical error was: {error} "
-    "You can still work with the data directly if you'd like — it is available in the session."
+    "You can still work with the data directly — it is available in the session."
 )
 
 _MSG_RATE_LIMITED = (
@@ -111,35 +110,22 @@ class LMFDBChat:
         self.last_lookup: dict | None = None
 
     def chat(self, message: str, verbose: bool = False) -> dict:
-        """
-        Process one conversational turn.
-        Returns a dict with keys: message, sql, code, plot, df, error.
-        Never raises.
-        """
         self.history.append({"role": "user", "content": message})
 
         # Step 1: intent classification
         try:
             intent_response = self._classify_and_respond(message)
         except Exception:
-            intent_response = None  # fail open — treat as query
+            intent_response = None
 
         if intent_response is not None:
             self.history.append({"role": "assistant", "content": intent_response})
             return self._reply(intent_response)
 
-        # Step 2: lookup — resolve concrete mathematical objects
+        # Step 2: mathematical clarification — on the original message,
+        # before lookup annotation is added
         try:
-            query_with_lookup, lookup_info = resolve(message)
-            self.last_lookup = lookup_info
-        except Exception:
-            query_with_lookup = message
-            lookup_info = None
-            self.last_lookup = None
-
-        # Step 3: mathematical clarification
-        try:
-            clarification = self._clarify(query_with_lookup)
+            clarification = self._clarify(message)
         except Exception as e:
             return self._error_response(_categorise(e))
 
@@ -150,9 +136,18 @@ class LMFDBChat:
 
         query = clarification["refined_query"]
 
-        # Step 4: route to tables
+        # Step 3: lookup — on the clarified query, after clarification
         try:
-            tables = route(query, history=self._history_str())
+            query_with_lookup, lookup_info = resolve(query)
+            self.last_lookup = lookup_info
+        except Exception:
+            query_with_lookup = query
+            lookup_info = None
+            self.last_lookup = None
+
+        # Step 4: route — uses the lookup-annotated query
+        try:
+            tables = route(query_with_lookup, history=self._history_str())
         except ValueError as e:
             reply = str(e)
             self.history.append({"role": "assistant", "content": reply})
@@ -165,9 +160,11 @@ class LMFDBChat:
         if verbose:
             print(f"  Tables: {tables}")
 
-        # Step 5: generate SQL
+        # Step 5: generate SQL — uses lookup-annotated query and lookup_info
         try:
-            sql_result = generate_sql(query, tables, lookup_info=lookup_info)
+            sql_result = generate_sql(
+                query_with_lookup, tables, lookup_info=lookup_info
+            )
         except Exception as e:
             reply = _categorise(e)
             self.history.append({"role": "assistant", "content": reply})
@@ -208,7 +205,7 @@ class LMFDBChat:
         self.last_sql = sql
         self.last_tables = _extract_tables(sql)
 
-        # Step 8: generate closing message
+        # Step 8: closing message
         try:
             reply = self._provenance_message(len(df))
         except Exception:
@@ -226,11 +223,6 @@ class LMFDBChat:
         }
 
     def run_analysis_turn(self, instruction: str) -> dict:
-        """
-        Process a follow-up analysis instruction on the current DataFrame.
-        Returns a dict with keys: message, code, plot, error.
-        Never raises.
-        """
         if self.last_df is None:
             return {
                 "message": (
@@ -286,7 +278,6 @@ class LMFDBChat:
                 "error": error_detail,
             }
 
-        # Append closing line to analysis response
         try:
             closing = self._provenance_message(len(self.last_df))
         except Exception:
@@ -302,7 +293,6 @@ class LMFDBChat:
         }
 
     def state(self) -> dict:
-        """Return serialisable session state for the GET /session endpoint."""
         return {
             "history": self.history,
             "last_sql": self.last_sql,
@@ -316,14 +306,7 @@ class LMFDBChat:
             ),
         }
 
-    # ── Private methods ───────────────────────────────────────────────────────
-
     def _classify_and_respond(self, message: str) -> str | None:
-        """
-        Returns None if the message is a database query (proceed through pipeline).
-        Returns a response string if conversational, off-topic, or ambiguous.
-        Fails open: returns None on any exception so queries are never blocked.
-        """
         client = Anthropic()
         r = client.messages.create(
             model="claude-haiku-4-5",
@@ -348,7 +331,6 @@ class LMFDBChat:
         return _parse(r.content[0].text)
 
     def _provenance_message(self, rows: int) -> str:
-        """Generate a short, varied closing line via Haiku."""
         client = Anthropic()
         r = client.messages.create(
             model="claude-haiku-4-5",
@@ -387,10 +369,7 @@ class LMFDBChat:
         }
 
 
-# ── Module-level helpers ──────────────────────────────────────────────────────
-
 def _extract_tables(sql: str) -> list[str]:
-    """Extract table names from a SQL query after FROM and JOIN keywords."""
     pattern = r'(?:FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s+(?:AS\s+)?\w+)?'
     matches = re.findall(pattern, sql, re.IGNORECASE)
     seen = set()
@@ -403,7 +382,6 @@ def _extract_tables(sql: str) -> list[str]:
 
 
 def _categorise(exc: Exception) -> str:
-    """Map an exception to a human-readable error message."""
     msg = str(exc)
     if "rate_limit" in msg.lower() or "429" in msg:
         return _MSG_RATE_LIMITED
