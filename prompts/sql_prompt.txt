@@ -13,18 +13,6 @@ Do not wrap in markdown, do not use backticks, do not add any text before or aft
 5. If the query cannot be answered with a single SELECT, set sql to null and explain why.
 6. If a table's schema entry has a "warning" field, follow it exactly before writing any SQL for that table.
 
-## Lookup by defining data
-
-If the query contains a concrete mathematical object, match it via its defining column:
-- Elliptic curve by equation y^2 + a1*xy + a3*y = x^3 + a2*x^2 + a4*x + a6:
-  extract [a1,a2,a3,a4,a6] and filter WHERE ainvs = ARRAY[a1,a2,a3,a4,a6]
-- Number field by polynomial: extract coefficients (lowest degree first)
-  and filter WHERE coeffs = ARRAY[c0,c1,...,cn]
-- Any object by LMFDB label: filter WHERE label = '...' or WHERE lmfdb_label = '...'
-- Dirichlet character by Conrey label q.n: filter WHERE label = 'q.n'
-- Newform by label N.k.c.x: filter WHERE label = 'N.k.c.x'
-- Artin representation by base label: filter WHERE "Baselabel" = '...'
-
 ## General column name rules
 
 - Reserved keywords must always be double-quoted: "order", "index", "name", "type", "group", "values", "level", "size".
