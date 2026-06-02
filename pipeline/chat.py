@@ -25,7 +25,7 @@ _INTENT_SYSTEM = """You are Conductor, an assistant for the LMFDB mathematical d
 - Mathematical or database queries: respond with exactly: QUERY
 
 Any message referencing mathematical objects (curves, fields, forms, L-functions, conductors, discriminants, ranks, primes, etc.) is a database query — output QUERY. 
-Generally avoid asking for clarification about mathematical terminology unless it is totally unclear."""
+Never ask for clarification about mathematical terminology."""
 
 _SUMMARISE_SYSTEM = """You are Conductor, a mathematical database assistant.
 The user asked a factual question. Answer it directly in one or two sentences of precise mathematical language using the data below. Do not describe what you did.
