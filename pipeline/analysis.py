@@ -6,13 +6,14 @@ If the code produces a matplotlib figure, it is returned as a base64 PNG string.
 import io
 import re
 import json
-import signal
+import base64
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from pathlib import Path
 from typing import Optional
 from anthropic import Anthropic
 
 _prompt_path = Path(__file__).parent.parent / "prompts" / "analysis_prompt.txt"
-_style_path = Path(__file__).parent.parent / "prompts" / "analysis_style.txt"
+_style_path  = Path(__file__).parent.parent / "prompts" / "analysis_style.txt"
 
 def _load_prompt() -> str:
     with open(_prompt_path) as f:
@@ -25,7 +26,6 @@ def _load_prompt() -> str:
         return base
 
 _PROMPT_TEMPLATE = _load_prompt()
-
 _TIMEOUT_SECONDS = 30
 
 
@@ -51,6 +51,7 @@ def execute_analysis(code: str, df) -> Optional[str]:
     Execute generated analysis code in a restricted namespace.
     Returns a base64-encoded PNG if a plot was produced, else None.
     Raises TimeoutError if execution exceeds _TIMEOUT_SECONDS.
+    Uses ThreadPoolExecutor instead of signal.alarm so it works on any thread.
     """
     import numpy as np
     import matplotlib
@@ -59,28 +60,28 @@ def execute_analysis(code: str, df) -> Optional[str]:
     import scipy
 
     namespace = {
-    "__builtins__": {
-        "print": print,
-        "range": range,
-        "len": len,
-        "enumerate": enumerate,
-        "zip": zip,
-        "list": list,
-        "dict": dict,
-        "tuple": tuple,
-        "set": set,
-        "sorted": sorted,
-        "min": min,
-        "max": max,
-        "sum": sum,
-        "abs": abs,
-        "round": round,
-        "isinstance": isinstance,
-        "str": str,
-        "int": int,
-        "float": float,
-        "bool": bool,
-    },
+        "__builtins__": {
+            "print": print,
+            "range": range,
+            "len": len,
+            "enumerate": enumerate,
+            "zip": zip,
+            "list": list,
+            "dict": dict,
+            "tuple": tuple,
+            "set": set,
+            "sorted": sorted,
+            "min": min,
+            "max": max,
+            "sum": sum,
+            "abs": abs,
+            "round": round,
+            "isinstance": isinstance,
+            "str": str,
+            "int": int,
+            "float": float,
+            "bool": bool,
+        },
         "df": df,
         "pd": __import__("pandas"),
         "np": np,
@@ -89,27 +90,30 @@ def execute_analysis(code: str, df) -> Optional[str]:
         "result": None,
     }
 
-    def _timeout_handler(signum, frame):
-        raise TimeoutError(f"Analysis exceeded {_TIMEOUT_SECONDS}s time limit.")
-
-    signal.signal(signal.SIGALRM, _timeout_handler)
-    signal.alarm(_TIMEOUT_SECONDS)
-    try:
+    def _run():
         exec(code, namespace)  # noqa: S102
-    finally:
-        signal.alarm(0)
-
-    import base64
-    fig = plt.gcf()
-    if fig.get_axes():
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches="tight", dpi=150)
+        fig = plt.gcf()
+        if fig.get_axes():
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png", bbox_inches="tight", dpi=150)
+            plt.close(fig)
+            buf.seek(0)
+            return base64.b64encode(buf.read()).decode()
         plt.close(fig)
-        buf.seek(0)
-        return base64.b64encode(buf.read()).decode()
-    plt.close(fig)
-    return None
+        return None
 
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(_run)
+        try:
+            return future.result(timeout=_TIMEOUT_SECONDS)
+        except FuturesTimeoutError:
+            raise TimeoutError(f"Analysis exceeded {_TIMEOUT_SECONDS}s time limit.")
+
+
+def _parse(text: str) -> dict:
+    text = re.sub(r"^```(?:json)?\s*", "", text.strip())
+    text = re.sub(r"\s*```$", "", text)
+    return json.loads(text.strip())
 
 def _parse(text: str) -> dict:
     text = re.sub(r"^```(?:json)?\s*", "", text.strip())
