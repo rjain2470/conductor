@@ -10,30 +10,24 @@ import re
 import json
 from anthropic import Anthropic
 from pipeline.router import route
-from pipeline.lookup import resolve
 from pipeline.sql_gen import generate_sql
 from pipeline.executor import execute_sql
 from pipeline.analysis import generate_analysis, execute_analysis
+from pipeline.lookup import resolve
 
 # ── System prompts ────────────────────────────────────────────────────────────
 
-_INTENT_SYSTEM = """You are the conversational layer of Conductor, a natural language
-interface to the LMFDB mathematical database (lmfdb.org), which contains data on
-elliptic curves, modular forms, number fields, L-functions, Dirichlet characters,
-Artin representations, genus-2 curves, abelian varieties, and related objects.
+_INTENT_SYSTEM = """You are Conductor, a mathematically knowledgeable assistant with access to the LMFDB (L-functions and Modular Forms Database). You have a warm, understated personality — think a good graduate student who knows their stuff and doesn't waste words.
 
-Classify the user message and respond appropriately:
+If someone greets you, chats, or thanks you, respond naturally and briefly as yourself. You can show a little personality. Don't be formal.
 
-- If the message is a greeting, thanks, or small talk: respond warmly and briefly,
-  and invite them to ask a mathematical question. Keep it to one or two sentences.
-- If the message is unrelated to mathematics or the LMFDB: politely explain what
-  Conductor does and redirect them. Keep it to two or three sentences.
-- If the message is ambiguous and you cannot tell whether it is a database query
-  or something else: ask one short, focused clarifying question.
-- If the message is a mathematical or database query: respond with exactly the
-  single word: QUERY
+If someone asks something unrelated to mathematics or the LMFDB — conferences, restaurants, life advice — gently let them know what you're here for, but without being robotic about it. Do not attempt to partially answer off-topic questions — just redirect.
 
-Do not explain your reasoning. Either respond naturally to the message, or output QUERY."""
+If you genuinely can't tell whether something is a database query or something else, ask a short natural question to find out.
+
+If the message is a mathematical or database query, respond with exactly the single word: QUERY
+
+Never explain your reasoning. Either respond as yourself, or output QUERY."""
 
 _CLARIFY_SYSTEM = """You are a mathematical assistant specialising in the LMFDB database.
 Assess whether the user query is clear enough to act on.
@@ -48,18 +42,18 @@ Do not ask for clarification that is not mathematically necessary.
 Conversation history so far:
 <<HISTORY>>"""
 
-_PROVENANCE_SYSTEM = """You are writing a brief, natural closing line for a mathematical
-database query response.
+_PROVENANCE_SYSTEM = """You are Conductor, a mathematically knowledgeable assistant with a warm, understated personality.
 
-The query returned data from the following SQL tables: {tables}
-The query returned {rows} rows.
+You have just returned {rows} rows of data to the user. Write a single short closing line that:
+- Confirms the result naturally (e.g. mentions the row count if interesting)
+- Asks if it's what they were looking for, or if there's anything else
 
-Write one sentence that:
-1. Mentions which table or tables the data came from, using natural mathematical
-   language (e.g. "elliptic curve data" rather than "ec_curvedata")
-2. Asks whether this is what the user was looking for.
-
-Be concise and natural. Do not be sycophantic. Do not start with "I"."""
+Keep it to one sentence. Vary the phrasing. Don't be formal. Don't mention table names.
+Examples of good closing lines:
+- "Found {rows} results — does that cover what you needed?"
+- "That's everything matching your query. Anything else?"
+- "Got {rows} — is that what you had in mind?"
+"""
 
 # ── Error messages ────────────────────────────────────────────────────────────
 
@@ -75,26 +69,25 @@ _MSG_SQL_FAILED = (
     "I was unable to generate a valid SQL query for your request. "
     "This sometimes happens for queries that span multiple tables in a complex way, "
     "or that reference invariants not directly stored in the database. "
-    "Try rephrasing your question, or ask for a simpler version first."
+    "Could you rephrase your question, or ask for a simpler version to start?"
 )
 
 _MSG_EXECUTION_FAILED = (
     "The query was generated but failed during execution. "
     "This is usually caused by a column name mismatch or an unsupported operation. "
-    "The technical error was: {error}"
+    "The error message was: {error}"
 )
 
 _MSG_ROUTER_FAILED = (
     "I was unable to identify which part of the LMFDB is relevant to your query. "
-    "Try being more specific about the mathematical objects you are interested in — "
-    "for example, 'elliptic curves over Q' rather than 'curves'."
+    "Could you be a bit more specific?"
 )
 
 _MSG_ANALYSIS_FAILED = (
     "I retrieved the data successfully ({rows} rows) but was unable to generate "
     "the analysis or plot you requested. "
     "The technical error was: {error} "
-    "You can still work with the data directly — it is available in the session."
+    "You can still work with the data directly if you'd like — it is available in the session."
 )
 
 _MSG_RATE_LIMITED = (
@@ -128,16 +121,25 @@ class LMFDBChat:
         # Step 1: intent classification
         try:
             intent_response = self._classify_and_respond(message)
-        except Exception as e:
+        except Exception:
             intent_response = None  # fail open — treat as query
 
         if intent_response is not None:
             self.history.append({"role": "assistant", "content": intent_response})
             return self._reply(intent_response)
 
-        # Step 2: mathematical clarification
+        # Step 2: lookup — resolve concrete mathematical objects
         try:
-            clarification = self._clarify(message)
+            query_with_lookup, lookup_info = resolve(message)
+            self.last_lookup = lookup_info
+        except Exception:
+            query_with_lookup = message
+            lookup_info = None
+            self.last_lookup = None
+
+        # Step 3: mathematical clarification
+        try:
+            clarification = self._clarify(query_with_lookup)
         except Exception as e:
             return self._error_response(_categorise(e))
 
@@ -146,11 +148,9 @@ class LMFDBChat:
             self.history.append({"role": "assistant", "content": reply})
             return self._reply(reply)
 
-        raw_query = clarification["refined_query"]
-        query, lookup_info = resolve(raw_query)
-        self.last_lookup = lookup_info
+        query = clarification["refined_query"]
 
-        # Step 3: route to tables
+        # Step 4: route to tables
         try:
             tables = route(query, history=self._history_str())
         except ValueError as e:
@@ -165,7 +165,7 @@ class LMFDBChat:
         if verbose:
             print(f"  Tables: {tables}")
 
-        # Step 4: generate SQL
+        # Step 5: generate SQL
         try:
             sql_result = generate_sql(query, tables, lookup_info=lookup_info)
         except Exception as e:
@@ -183,7 +183,7 @@ class LMFDBChat:
         if verbose:
             print(f"  SQL: {sql}")
 
-        # Step 5: execute
+        # Step 6: execute
         try:
             df = execute_sql(sql)
         except Exception as e:
@@ -192,7 +192,7 @@ class LMFDBChat:
             self.history.append({"role": "assistant", "content": reply})
             return self._error_response(reply)
 
-        # Step 6: handle empty result
+        # Step 7: handle empty result
         if df.empty:
             self.history.append({"role": "assistant", "content": _MSG_EMPTY_RESULT})
             return {
@@ -208,11 +208,11 @@ class LMFDBChat:
         self.last_sql = sql
         self.last_tables = _extract_tables(sql)
 
-        # Step 7: generate provenance + confirmation message
+        # Step 8: generate closing message
         try:
-            reply = self._provenance_message(self.last_tables, len(df))
+            reply = self._provenance_message(len(df))
         except Exception:
-            reply = f"Query returned {len(df)} rows."
+            reply = f"Found {len(df)} results. Is that what you were looking for?"
 
         self.history.append({"role": "assistant", "content": reply})
 
@@ -286,13 +286,13 @@ class LMFDBChat:
                 "error": error_detail,
             }
 
-        # Append provenance to analysis response if tables are known
-        msg = explanation
-        if self.last_tables:
-            msg = explanation + (
-                f" Data sourced from: {', '.join(self.last_tables)}. "
-                "Does this look right, or would you like to adjust the query or analysis?"
-            )
+        # Append closing line to analysis response
+        try:
+            closing = self._provenance_message(len(self.last_df))
+        except Exception:
+            closing = "Is there anything else I can help you with?"
+
+        msg = explanation + " " + closing if explanation else closing
 
         return {
             "message": msg,
@@ -347,17 +347,14 @@ class LMFDBChat:
         )
         return _parse(r.content[0].text)
 
-    def _provenance_message(self, tables: list[str], rows: int) -> str:
-        """Generate a natural provenance + confirmation message via Haiku."""
+    def _provenance_message(self, rows: int) -> str:
+        """Generate a short, varied closing line via Haiku."""
         client = Anthropic()
         r = client.messages.create(
             model="claude-haiku-4-5",
-            max_tokens=80,
-            system=_PROVENANCE_SYSTEM.format(
-                tables=", ".join(tables) if tables else "the LMFDB",
-                rows=rows,
-            ),
-            messages=[{"role": "user", "content": "Generate the closing line."}]
+            max_tokens=60,
+            system=_PROVENANCE_SYSTEM.format(rows=rows),
+            messages=[{"role": "user", "content": "Write the closing line."}]
         )
         return r.content[0].text.strip()
 
@@ -393,13 +390,9 @@ class LMFDBChat:
 # ── Module-level helpers ──────────────────────────────────────────────────────
 
 def _extract_tables(sql: str) -> list[str]:
-    """
-    Extract table names from a SQL query.
-    Finds names after FROM and JOIN keywords.
-    """
+    """Extract table names from a SQL query after FROM and JOIN keywords."""
     pattern = r'(?:FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s+(?:AS\s+)?\w+)?'
     matches = re.findall(pattern, sql, re.IGNORECASE)
-    # Deduplicate while preserving order
     seen = set()
     result = []
     for m in matches:
