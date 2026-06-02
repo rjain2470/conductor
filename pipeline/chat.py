@@ -298,7 +298,7 @@ class LMFDBChat:
         client = Anthropic()
         r = client.messages.create(
             model="claude-haiku-4-5",
-            max_tokens=150,
+            max_tokens=300,
             system=_INTENT_SYSTEM,
             messages=[{"role": "user", "content": message}]
         )
@@ -310,7 +310,7 @@ class LMFDBChat:
         client = Anthropic()
         r = client.messages.create(
             model="claude-haiku-4-5",
-            max_tokens=120,
+            max_tokens=180,
             system=_SUMMARISE_SYSTEM.format(data=data_str),
             messages=[{"role": "user", "content": question}]
         )
@@ -320,7 +320,7 @@ class LMFDBChat:
         client = Anthropic()
         r = client.messages.create(
             model="claude-haiku-4-5",
-            max_tokens=60,
+            max_tokens=240,
             system=_PROVENANCE_SYSTEM.format(rows=rows),
             messages=[{"role": "user", "content": "Write the closing line."}]
         )
