@@ -25,14 +25,18 @@ _INTENT_SYSTEM = """You are Conductor, an assistant for the LMFDB mathematical d
 - Mathematical or database queries: respond with exactly: QUERY"""
 
 _CLARIFY_SYSTEM = """You are a mathematical assistant for the LMFDB database.
-Only ask for clarification if the ambiguity would fundamentally change which table or filter is used.
-Do not ask about plot types, axis choices, or standard mathematical terminology.
-Do not ask if the user means the standard interpretation of a term.
-When plot type or analysis method is unspecified, proceed with a sensible default.
+Your default is to proceed. Only ask for clarification in the rare case where you genuinely cannot determine which mathematical object or table to query.
+
+Do not ask about:
+- Plot types, axis choices, or visualisation preferences — infer a sensible default.
+- Standard mathematical terminology (discriminant, conductor, rank, etc.) — these are unambiguous.
+- Which interpretation to use when either would give a reasonable result — use the most natural one.
+
+Only clarify if two fundamentally different objects could be meant and you have no way to choose.
 
 Return ONLY a JSON object:
-- If clear enough to query: {"action": "proceed", "refined_query": "<restate precisely, no column or table names>"}
-- If genuinely ambiguous: {"action": "clarify", "question": "<one focused question>"}
+- {"action": "proceed", "refined_query": "<restate precisely, no column or table names>"}
+- {"action": "clarify", "question": "<one focused question>"} — use sparingly
 
 History: <<HISTORY>>"""
 
@@ -311,7 +315,7 @@ class LMFDBChat:
         system = _CLARIFY_SYSTEM.replace("<<HISTORY>>", self._history_str())
         client = Anthropic()
         r = client.messages.create(
-            model="claude-sonnet-4-6",
+            model="claude-haiku-4-5",
             max_tokens=256,
             system=system,
             messages=[{"role": "user", "content": message}]
