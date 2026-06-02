@@ -32,18 +32,41 @@ _SELECT_STAR_NOTE = (
 )
 
 
-def generate_sql(query: str, tables: list[str], _retry: bool = False) -> dict:
+def generate_sql(
+    query: str,
+    tables: list[str],
+    lookup_info: dict | None = None,
+    _retry: bool = False,
+) -> dict:
     """
     Return {"sql": "...", "explanation": "..."}.
     sql is None if the query cannot be answered with a single SELECT.
 
-    If the generated SQL uses SELECT *, retries once with an explicit instruction
-    to name columns.
+    lookup_info: if provided, injects a mandatory WHERE filter for the
+    specific object identified by the lookup stage.
     """
     schema_slice = {t: _FULL_SCHEMA[t] for t in tables if t in _FULL_SCHEMA}
     prompt = _PROMPT_TEMPLATE
     if _retry:
         prompt = prompt + _SELECT_STAR_NOTE
+
+    # Inject lookup constraint if a specific object was identified
+    if lookup_info:
+        value = lookup_info["value"]
+        column = lookup_info["column"]
+        table = lookup_info["table"]
+        if isinstance(value, list):
+            value_repr = f"ARRAY{value}"
+        else:
+            value_repr = f"'{value}'"
+        lookup_note = (
+            f"\n\nCRITICAL: This query references a specific mathematical object. "
+            f"You MUST include this exact filter in the WHERE clause: "
+            f"{column} = {value_repr} "
+            f"(this column is in table {table}). "
+            f"Do not omit this filter."
+        )
+        prompt = prompt + lookup_note
 
     system = prompt.replace("<<SCHEMA>>", json.dumps(schema_slice, indent=2))
     client = Anthropic()
@@ -57,17 +80,14 @@ def generate_sql(query: str, tables: list[str], _retry: bool = False) -> dict:
     sql = result.get("sql")
 
     if sql:
-        # If SELECT * and this isn't already a retry, retry once
         if _has_select_star(sql) and not _retry:
-            return generate_sql(query, tables, _retry=True)
+            return generate_sql(query, tables, lookup_info=lookup_info, _retry=True)
         _validate(sql)
 
     return result
 
 
 def _has_select_star(sql: str) -> bool:
-    """Return True if the SQL contains a bare SELECT * or SELECT table.*"""
-    # Match SELECT * or SELECT alias.* but not COUNT(*)
     return bool(re.search(r'SELECT\s+(?:\w+\.)?\*', sql, re.IGNORECASE))
 
 
