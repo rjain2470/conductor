@@ -24,22 +24,6 @@ _INTENT_SYSTEM = """You are Conductor, an assistant for the LMFDB mathematical d
 - Ambiguous messages: ask one short clarifying question.
 - Mathematical or database queries: respond with exactly: QUERY"""
 
-_CLARIFY_SYSTEM = """You are a mathematical assistant for the LMFDB database.
-Your default is to proceed. Only ask for clarification in the rare case where you genuinely cannot determine which mathematical object or table to query.
-
-Do not ask about:
-- Plot types, axis choices, or visualisation preferences — infer a sensible default.
-- Standard mathematical terminology (discriminant, conductor, rank, etc.) — these are unambiguous.
-- Which interpretation to use when either would give a reasonable result — use the most natural one.
-
-Only clarify if two fundamentally different objects could be meant and you have no way to choose.
-
-Return ONLY a JSON object:
-- {"action": "proceed", "refined_query": "<restate precisely, no column or table names>"}
-- {"action": "clarify", "question": "<one focused question>"} — use sparingly
-
-History: <<HISTORY>>"""
-
 _SUMMARISE_SYSTEM = """You are Conductor, a mathematical database assistant.
 The user asked a factual question. Answer it directly in one or two sentences of precise mathematical language using the data below. Do not describe what you did.
 Then on a new sentence, add a brief professional closing (e.g. "Let me know if you need anything further.").
@@ -54,14 +38,12 @@ No table names. Be concise and professional."""
 
 # ── Pattern matching ──────────────────────────────────────────────────────────
 
-# Factual question patterns — use summarise instead of provenance
 _FACTUAL_RE = re.compile(
     r'\b(how many|what is|what are|what was|find the|compute|calculate|'
     r'does|is it|is there|is this|give me the)\b',
     re.IGNORECASE
 )
 
-# Plot request patterns — automatically trigger analysis after data fetch
 _PLOT_RE = re.compile(
     r'\b(plot|histogram|scatter|visuali|chart|graph|show me|distribution)\b',
     re.IGNORECASE
@@ -119,20 +101,10 @@ class LMFDBChat:
             self.history.append({"role": "assistant", "content": intent_response})
             return self._reply(intent_response)
 
-        # Step 2: clarification — on the original message before lookup
-        try:
-            clarification = self._clarify(message)
-        except Exception as e:
-            return self._error_response(_categorise(e))
+        # Step 2: use message directly — no clarification step
+        query = message
 
-        if clarification["action"] == "clarify":
-            reply = clarification["question"]
-            self.history.append({"role": "assistant", "content": reply})
-            return self._reply(reply)
-
-        query = clarification["refined_query"]
-
-        # Step 3: lookup — on the clarified query
+        # Step 3: lookup — resolve concrete mathematical objects
         try:
             query_with_lookup, lookup_info = resolve(query)
             self.last_lookup = lookup_info
@@ -200,7 +172,7 @@ class LMFDBChat:
         self.last_sql = sql
         self.last_tables = _extract_tables(sql)
 
-        # Step 7: if the message is a plot request, run analysis automatically
+        # Step 7: if plot requested, run analysis automatically
         if _PLOT_RE.search(message):
             analysis_result = self.run_analysis_turn(message)
             reply = analysis_result.get("message", "")
@@ -214,8 +186,7 @@ class LMFDBChat:
                 "error": analysis_result.get("error"),
             }
 
-        # Step 8: generate closing message
-        # Use summarise for factual questions, provenance for data retrieval
+        # Step 8: closing message
         try:
             if _FACTUAL_RE.search(message):
                 reply = self._summarise(message, df)
@@ -332,17 +303,6 @@ class LMFDBChat:
         )
         result = r.content[0].text.strip()
         return None if result == "QUERY" else result
-
-    def _clarify(self, message: str) -> dict:
-        system = _CLARIFY_SYSTEM.replace("<<HISTORY>>", self._history_str())
-        client = Anthropic()
-        r = client.messages.create(
-            model="claude-haiku-4-5",
-            max_tokens=256,
-            system=system,
-            messages=[{"role": "user", "content": message}]
-        )
-        return _parse(r.content[0].text)
 
     def _summarise(self, question: str, df) -> str:
         data_str = df.head(5).to_json(orient="records", indent=2)
