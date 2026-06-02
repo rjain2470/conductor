@@ -13,6 +13,9 @@ Rules:
 - For aggregations: store result in a variable called result and print it.
 - Do not write to disk or make network calls.
 - If the requested data is not in df, set code to null and explain why.
+- When the analysis request is underspecified, infer the most informative visualisation 
+or summary a data scientist would choose given the data. For a single numeric column,
+use a histogram. For two numeric columns, use a scatter plot, etc.
 
 DataFrame columns and types:
 <<DF_DESCRIPTION>>
