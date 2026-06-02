@@ -52,6 +52,21 @@ You returned {rows} result(s). Write one closing sentence:
 - Multiple results: note the count, invite refinement or follow-up.
 No table names. Be concise and professional."""
 
+# ── Pattern matching ──────────────────────────────────────────────────────────
+
+# Factual question patterns — use summarise instead of provenance
+_FACTUAL_RE = re.compile(
+    r'\b(how many|what is|what are|what was|find the|compute|calculate|'
+    r'does|is it|is there|is this|give me the)\b',
+    re.IGNORECASE
+)
+
+# Plot request patterns — automatically trigger analysis after data fetch
+_PLOT_RE = re.compile(
+    r'\b(plot|histogram|scatter|visuali|chart|graph|show me|distribution)\b',
+    re.IGNORECASE
+)
+
 # ── Error messages ────────────────────────────────────────────────────────────
 
 _MSG_EMPTY = (
@@ -60,7 +75,7 @@ _MSG_EMPTY = (
     "the conductor range."
 )
 _MSG_SQL_FAILED = (
-    "I was unable to generate a valid query for this request. Maybe"
+    "I was unable to generate a valid query for this request. Maybe "
     "try rephrasing or asking for a simpler version first?"
 )
 _MSG_EXEC_FAILED = (
@@ -71,7 +86,7 @@ _MSG_ROUTER_FAILED = (
     "Could you be a bit more specific?"
 )
 _MSG_ANALYSIS_FAILED = (
-    "Data retrieved ({rows} rows) but analysis failed. Error: {error}."
+    "Data retrieved ({rows} rows) but analysis failed. Error: {error}. "
     "The data is still available in the session."
 )
 _MSG_RATE_LIMITED = (
@@ -79,13 +94,6 @@ _MSG_RATE_LIMITED = (
 )
 _MSG_CREDITS = (
     "Conductor is temporarily unavailable due to a service issue. Please check back later."
-)
-
-# Factual question patterns — use summarise instead of provenance
-_FACTUAL_RE = re.compile(
-    r'\b(how many|what is|what are|what was|find the|compute|calculate|'
-    r'does|is it|is there|is this|give me the)\b',
-    re.IGNORECASE
 )
 
 
@@ -192,7 +200,21 @@ class LMFDBChat:
         self.last_sql = sql
         self.last_tables = _extract_tables(sql)
 
-        # Step 7: generate closing message
+        # Step 7: if the message is a plot request, run analysis automatically
+        if _PLOT_RE.search(message):
+            analysis_result = self.run_analysis_turn(message)
+            reply = analysis_result.get("message", "")
+            self.history.append({"role": "assistant", "content": reply})
+            return {
+                "message": reply,
+                "sql": sql,
+                "code": analysis_result.get("code"),
+                "plot": analysis_result.get("plot"),
+                "df": df.to_dict(orient="records"),
+                "error": analysis_result.get("error"),
+            }
+
+        # Step 8: generate closing message
         # Use summarise for factual questions, provenance for data retrieval
         try:
             if _FACTUAL_RE.search(message):
