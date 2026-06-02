@@ -16,6 +16,7 @@ Rules:
 - When the analysis request is underspecified, infer the most informative visualisation 
 or summary a data scientist would choose given the data. For a single numeric column,
 use a histogram. For two numeric columns, use a scatter plot, etc.
+- For the explanation field, write one sentence maximum describing what the plot shows. Do not describe the data retrieval or filtering steps.
 
 DataFrame columns and types:
 <<DF_DESCRIPTION>>
