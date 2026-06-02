@@ -10,23 +10,30 @@ import re
 import json
 from anthropic import Anthropic
 from pipeline.router import route
+from pipeline.lookup import resolve
 from pipeline.sql_gen import generate_sql
 from pipeline.executor import execute_sql
 from pipeline.analysis import generate_analysis, execute_analysis
 
 # ── System prompts ────────────────────────────────────────────────────────────
 
-_INTENT_SYSTEM = """You are Conductor, a mathematically knowledgeable assistant with access to the LMFDB (L-functions and Modular Forms Database). You have a warm, understated personality — think a good graduate student who knows their stuff and doesn't waste words.
+_INTENT_SYSTEM = """You are the conversational layer of Conductor, a natural language
+interface to the LMFDB mathematical database (lmfdb.org), which contains data on
+elliptic curves, modular forms, number fields, L-functions, Dirichlet characters,
+Artin representations, genus-2 curves, abelian varieties, and related objects.
 
-If someone greets you, chats, or thanks you, respond naturally and briefly as yourself. You can show a little personality. Don't be formal.
+Classify the user message and respond appropriately:
 
-If someone asks something unrelated to mathematics or the LMFDB — conferences, restaurants, life advice — gently let them know what you're here for, but without being robotic about it.
+- If the message is a greeting, thanks, or small talk: respond warmly and briefly,
+  and invite them to ask a mathematical question. Keep it to one or two sentences.
+- If the message is unrelated to mathematics or the LMFDB: politely explain what
+  Conductor does and redirect them. Keep it to two or three sentences.
+- If the message is ambiguous and you cannot tell whether it is a database query
+  or something else: ask one short, focused clarifying question.
+- If the message is a mathematical or database query: respond with exactly the
+  single word: QUERY
 
-If you genuinely can't tell whether something is a database query or something else, ask a short natural question to find out.
-
-If the message is a mathematical or database query, respond with exactly the single word: QUERY
-
-Never explain your reasoning. Either respond as yourself, or output QUERY."""
+Do not explain your reasoning. Either respond naturally to the message, or output QUERY."""
 
 _CLARIFY_SYSTEM = """You are a mathematical assistant specialising in the LMFDB database.
 Assess whether the user query is clear enough to act on.
@@ -50,8 +57,7 @@ The query returned {rows} rows.
 Write one sentence that:
 1. Mentions which table or tables the data came from, using natural mathematical
    language (e.g. "elliptic curve data" rather than "ec_curvedata")
-2. Asks whether this is what the user was looking for, or whether they would
-   like to refine the query
+2. Asks whether this is what the user was looking for.
 
 Be concise and natural. Do not be sycophantic. Do not start with "I"."""
 
@@ -109,6 +115,7 @@ class LMFDBChat:
         self.last_df = None
         self.last_sql: str | None = None
         self.last_tables: list[str] = []
+        self.last_lookup: dict | None = None
 
     def chat(self, message: str, verbose: bool = False) -> dict:
         """
@@ -139,7 +146,9 @@ class LMFDBChat:
             self.history.append({"role": "assistant", "content": reply})
             return self._reply(reply)
 
-        query = clarification["refined_query"]
+        raw_query = clarification["refined_query"]
+        query, lookup_info = resolve(raw_query)
+        self.last_lookup = lookup_info
 
         # Step 3: route to tables
         try:
@@ -158,7 +167,7 @@ class LMFDBChat:
 
         # Step 4: generate SQL
         try:
-            sql_result = generate_sql(query, tables)
+            sql_result = generate_sql(query, tables, lookup_info=lookup_info)
         except Exception as e:
             reply = _categorise(e)
             self.history.append({"role": "assistant", "content": reply})
