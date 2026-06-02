@@ -7,6 +7,9 @@ import io
 import re
 import json
 import base64
+import matplotlib
+matplotlib.use("Agg")  # must be set before any other matplotlib imports
+import matplotlib.pyplot as plt
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from pathlib import Path
 from typing import Optional
@@ -14,6 +17,7 @@ from anthropic import Anthropic
 
 _prompt_path = Path(__file__).parent.parent / "prompts" / "analysis_prompt.txt"
 _style_path  = Path(__file__).parent.parent / "prompts" / "analysis_style.txt"
+
 
 def _load_prompt() -> str:
     with open(_prompt_path) as f:
@@ -24,6 +28,7 @@ def _load_prompt() -> str:
         return base + "\n" + style
     except FileNotFoundError:
         return base
+
 
 _PROMPT_TEMPLATE = _load_prompt()
 _TIMEOUT_SECONDS = 30
@@ -51,12 +56,13 @@ def execute_analysis(code: str, df) -> Optional[str]:
     Execute generated analysis code in a restricted namespace.
     Returns a base64-encoded PNG if a plot was produced, else None.
     Raises TimeoutError if execution exceeds _TIMEOUT_SECONDS.
-    Uses ThreadPoolExecutor instead of signal.alarm so it works on any thread.
+
+    Uses ThreadPoolExecutor instead of signal.alarm so it works on any
+    thread (signal.alarm is main-thread only and fails on Render/uvicorn).
+    matplotlib.use("Agg") is set at module level to avoid thread-safety issues.
+    plt.close("all") clears stale figure state before each execution.
     """
     import numpy as np
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
     import scipy
 
     namespace = {
@@ -91,6 +97,7 @@ def execute_analysis(code: str, df) -> Optional[str]:
     }
 
     def _run():
+        plt.close("all")
         exec(code, namespace)  # noqa: S102
         fig = plt.gcf()
         if fig.get_axes():
@@ -109,11 +116,6 @@ def execute_analysis(code: str, df) -> Optional[str]:
         except FuturesTimeoutError:
             raise TimeoutError(f"Analysis exceeded {_TIMEOUT_SECONDS}s time limit.")
 
-
-def _parse(text: str) -> dict:
-    text = re.sub(r"^```(?:json)?\s*", "", text.strip())
-    text = re.sub(r"\s*```$", "", text)
-    return json.loads(text.strip())
 
 def _parse(text: str) -> dict:
     text = re.sub(r"^```(?:json)?\s*", "", text.strip())
