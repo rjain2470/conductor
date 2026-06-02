@@ -15,91 +15,72 @@ from pipeline.executor import execute_sql
 from pipeline.analysis import generate_analysis, execute_analysis
 from pipeline.lookup import resolve
 
-_INTENT_SYSTEM = """You are Conductor, a mathematically knowledgeable assistant with access to the LMFDB (L-functions and Modular Forms Database). You have a warm, understated personality — think a good graduate student who knows their stuff and doesn't waste words.
+# ── Prompts ───────────────────────────────────────────────────────────────────
 
-If someone greets you, chats, or thanks you, respond naturally and briefly as yourself. You can show a little personality. Don't be formal.
+_INTENT_SYSTEM = """You are Conductor, an assistant for the LMFDB mathematical database. Warm, understated, knowledgeable — like a good graduate student.
 
-If someone asks something unrelated to mathematics or the LMFDB — conferences, restaurants, life advice — gently let them know what you're here for, but without being robotic about it. Do not attempt to partially answer off-topic questions — just redirect.
+- Greetings/thanks/small talk: respond briefly and naturally.
+- Off-topic questions: redirect without partially answering.
+- Ambiguous messages: ask one short clarifying question.
+- Mathematical or database queries: respond with exactly: QUERY"""
 
-If you genuinely can't tell whether something is a database query or something else, ask a short natural question to find out.
+_CLARIFY_SYSTEM = """You are a mathematical assistant for the LMFDB database.
+Assess whether the query is precise enough to act on.
 
-If the message is a mathematical or database query, respond with exactly the single word: QUERY
-
-Never explain your reasoning. Either respond as yourself, or output QUERY."""
-
-_CLARIFY_SYSTEM = """You are a mathematical assistant specialising in the LMFDB database.
-Assess whether the user query is clear enough to act on.
-
-Return ONLY a raw JSON object:
-- If clear: {"action": "proceed", "refined_query": "<restate precisely>"}
+Return ONLY a JSON object:
+- If clear: {"action": "proceed", "refined_query": "<restate precisely, no column or table names>"}
 - If ambiguous: {"action": "clarify", "question": "<one focused question>"}
 
-Flag ambiguity only when it would materially change what is queried.
-Do not ask for clarification that is not mathematically necessary.
-Do not mention or invent specific column names or table names in the refined_query.
+Only flag ambiguity if it would materially change what is queried.
 
-Conversation history so far:
-<<HISTORY>>"""
+History: <<HISTORY>>"""
 
-_PROVENANCE_SYSTEM = """You are Conductor, a mathematical database assistant with a professional but approachable tone.
+_SUMMARISE_SYSTEM = """You are Conductor, a mathematical database assistant.
+The user asked a factual question. Answer it directly in one or two sentences of precise mathematical language using the data below. Do not describe what you did.
+Then on a new sentence, add a brief professional closing (e.g. "Let me know if you need anything further.").
 
-You have just returned {rows} rows of data to the user. Write a single short closing line that:
-- If {rows} == 1: confirm the object was found
-- If {rows} > 1: note the number of results
-- Invite the user to ask a follow-up or let you know if they need something different
+Data: {data}"""
 
-Keep it to one sentence. Don't mention table names. Be concise and professional.
-Examples for a single result:
-- "I found the curve you were looking for — let me know if you'd like additional data."
-- "Found it. Let me know if you'd like to refine or extend the query."
-Examples for multiple results:
-- "Returned {rows} results matching your criteria. Let me know if you'd like to filter further."
-- "Here are {rows} records — feel free to ask for analysis or a refined query."
-- "Found {rows} matching entries. Let me know if this is what you needed."
-"""
+_PROVENANCE_SYSTEM = """You are Conductor, a warm and professional mathematical database assistant.
+You returned {rows} result(s). Write one closing sentence:
+- 1 result: confirm the object was found, invite follow-up.
+- Multiple results: note the count, invite refinement or follow-up.
+No table names. Be concise and professional."""
 
-_MSG_EMPTY_RESULT = (
-    "The query executed successfully but returned no results. "
-    "This may mean the data is not available on this mirror of the LMFDB, "
-    "or the combination of filters you specified matches no objects. "
-    "Try relaxing one of the constraints — for example, widening the conductor "
-    "range or removing a secondary filter."
+# ── Error messages ────────────────────────────────────────────────────────────
+
+_MSG_EMPTY = (
+    "The query returned no results. The data may not be available on this mirror, "
+    "or the filters match no objects. Try relaxing a constraint such as widening "
+    "the conductor range."
 )
-
 _MSG_SQL_FAILED = (
-    "I was unable to generate a valid SQL query for your request. "
-    "This sometimes happens for queries that span multiple tables in a complex way, "
-    "or that reference invariants not directly stored in the database. "
-    "Try rephrasing your question, or ask for a simpler version first."
+    "I was unable to generate a valid query for this request. Maybe"
+    "try rephrasing or asking for a simpler version first?"
 )
-
-_MSG_EXECUTION_FAILED = (
-    "The query was generated but failed during execution. "
-    "This is usually caused by a column name mismatch or an unsupported operation. "
-    "The technical error was: {error}"
+_MSG_EXEC_FAILED = (
+    "The query failed during execution. Technical error: {error}"
 )
-
 _MSG_ROUTER_FAILED = (
-    "I was unable to identify which part of the LMFDB is relevant to your query. "
-    "Try being more specific about the mathematical objects you are interested in — "
-    "for example, 'elliptic curves over Q' rather than 'curves'."
+    "I could not identify the relevant part of the LMFDB for this query. "
+    "Could you be a bit more specific?"
 )
-
 _MSG_ANALYSIS_FAILED = (
-    "I retrieved the data successfully ({rows} rows) but was unable to generate "
-    "the analysis or plot you requested. "
-    "The technical error was: {error} "
-    "You can still work with the data directly — it is available in the session."
+    "Data retrieved ({rows} rows) but analysis failed. Error: {error}."
+    "The data is still available in the session."
 )
-
 _MSG_RATE_LIMITED = (
-    "We apologize, but Conductor is temporarily experiencing high demand. "
-    "Please wait a moment and try again."
+    "Conductor is temporarily experiencing high demand. Please try again in a moment."
+)
+_MSG_CREDITS = (
+    "Conductor is temporarily unavailable due to a service issue. Please check back later."
 )
 
-_MSG_CREDITS = (
-    "We apologize, but Conductor is temporarily unavailable due to a "
-    "service issue on our end. Please check back later."
+# Factual question patterns — use summarise instead of provenance
+_FACTUAL_RE = re.compile(
+    r'\b(how many|what is|what are|what was|find the|compute|calculate|'
+    r'does|is it|is there|is this|give me the)\b',
+    re.IGNORECASE
 )
 
 
@@ -125,8 +106,7 @@ class LMFDBChat:
             self.history.append({"role": "assistant", "content": intent_response})
             return self._reply(intent_response)
 
-        # Step 2: mathematical clarification — on the original message,
-        # before lookup annotation is added
+        # Step 2: clarification — on the original message before lookup
         try:
             clarification = self._clarify(message)
         except Exception as e:
@@ -139,7 +119,7 @@ class LMFDBChat:
 
         query = clarification["refined_query"]
 
-        # Step 3: lookup — on the clarified query, after clarification
+        # Step 3: lookup — on the clarified query
         try:
             query_with_lookup, lookup_info = resolve(query)
             self.last_lookup = lookup_info
@@ -148,7 +128,7 @@ class LMFDBChat:
             lookup_info = None
             self.last_lookup = None
 
-        # Step 4: route — uses the lookup-annotated query
+        # Step 4: route
         try:
             tables = route(query_with_lookup, history=self._history_str())
         except ValueError as e:
@@ -163,7 +143,7 @@ class LMFDBChat:
         if verbose:
             print(f"  Tables: {tables}")
 
-        # Step 5: generate SQL — uses lookup-annotated query and lookup_info
+        # Step 5: generate SQL
         try:
             sql_result = generate_sql(
                 query_with_lookup, tables, lookup_info=lookup_info
@@ -176,7 +156,7 @@ class LMFDBChat:
         sql = sql_result.get("sql")
         if not sql:
             explanation = sql_result.get("explanation", "")
-            reply = _MSG_SQL_FAILED + (f" Details: {explanation}" if explanation else "")
+            reply = _MSG_SQL_FAILED + (f" {explanation}" if explanation else "")
             self.history.append({"role": "assistant", "content": reply})
             return self._error_response(reply)
 
@@ -188,15 +168,14 @@ class LMFDBChat:
             df = execute_sql(sql)
         except Exception as e:
             error_detail = str(e).split("\n")[0]
-            reply = _MSG_EXECUTION_FAILED.format(error=error_detail)
+            reply = _MSG_EXEC_FAILED.format(error=error_detail)
             self.history.append({"role": "assistant", "content": reply})
             return self._error_response(reply)
 
-        # Step 7: handle empty result
         if df.empty:
-            self.history.append({"role": "assistant", "content": _MSG_EMPTY_RESULT})
+            self.history.append({"role": "assistant", "content": _MSG_EMPTY})
             return {
-                "message": _MSG_EMPTY_RESULT,
+                "message": _MSG_EMPTY,
                 "sql": sql,
                 "code": None,
                 "plot": None,
@@ -208,11 +187,15 @@ class LMFDBChat:
         self.last_sql = sql
         self.last_tables = _extract_tables(sql)
 
-        # Step 8: closing message
+        # Step 7: generate closing message
+        # Use summarise for factual questions, provenance for data retrieval
         try:
-            reply = self._provenance_message(len(df))
+            if _FACTUAL_RE.search(message):
+                reply = self._summarise(message, df)
+            else:
+                reply = self._provenance_message(len(df))
         except Exception:
-            reply = f"Found {len(df)} results. Is that what you were looking for?"
+            reply = f"Returned {len(df)} result(s). Let me know if you need anything further."
 
         self.history.append({"role": "assistant", "content": reply})
 
@@ -229,8 +212,8 @@ class LMFDBChat:
         if self.last_df is None:
             return {
                 "message": (
-                    "There is no data in the current session to analyse. "
-                    "Please submit a query first to retrieve some data."
+                    "No data in the current session. "
+                    "Please submit a query first."
                 ),
                 "code": None,
                 "plot": None,
@@ -240,19 +223,21 @@ class LMFDBChat:
         try:
             result = generate_analysis(instruction, self.last_df)
         except Exception as e:
-            error_msg = _MSG_ANALYSIS_FAILED.format(
-                rows=len(self.last_df),
-                error=_categorise(e)
-            )
-            return {"message": error_msg, "code": None, "plot": None, "error": str(e)}
+            return {
+                "message": _MSG_ANALYSIS_FAILED.format(
+                    rows=len(self.last_df), error=_categorise(e)
+                ),
+                "code": None,
+                "plot": None,
+                "error": str(e),
+            }
 
         code = result.get("code")
         explanation = result.get("explanation", "")
 
         if not code:
             msg = explanation or (
-                "I was unable to generate analysis code for this request. "
-                "The data may not contain the columns needed. "
+                "Unable to generate analysis code. "
                 f"Available columns: {', '.join(self.last_df.columns.tolist())}."
             )
             return {"message": msg, "code": None, "plot": None, "error": None}
@@ -262,31 +247,30 @@ class LMFDBChat:
         except TimeoutError:
             return {
                 "message": (
-                    "The analysis code took too long to execute and was stopped. "
-                    "Try requesting a simpler analysis or a smaller dataset."
+                    "Analysis timed out. "
+                    "Try a simpler analysis or a smaller dataset."
                 ),
                 "code": code,
                 "plot": None,
                 "error": "timeout",
             }
         except Exception as e:
-            error_detail = str(e).split("\n")[0]
             return {
                 "message": (
-                    f"The analysis code encountered an error: {error_detail}. "
-                    "The generated code is included so you can inspect or modify it."
+                    f"Analysis encountered an error: {str(e).split(chr(10))[0]}. "
+                    "The generated code is included for inspection."
                 ),
                 "code": code,
                 "plot": None,
-                "error": error_detail,
+                "error": str(e).split("\n")[0],
             }
 
         try:
             closing = self._provenance_message(len(self.last_df))
         except Exception:
-            closing = "Is there anything else I can help you with?"
+            closing = "Let me know if you need anything further."
 
-        msg = explanation + " " + closing if explanation else closing
+        msg = (explanation + " " + closing).strip() if explanation else closing
 
         return {
             "message": msg,
@@ -309,6 +293,8 @@ class LMFDBChat:
             ),
         }
 
+    # ── Private ───────────────────────────────────────────────────────────────
+
     def _classify_and_respond(self, message: str) -> str | None:
         client = Anthropic()
         r = client.messages.create(
@@ -318,9 +304,7 @@ class LMFDBChat:
             messages=[{"role": "user", "content": message}]
         )
         result = r.content[0].text.strip()
-        if result == "QUERY":
-            return None
-        return result
+        return None if result == "QUERY" else result
 
     def _clarify(self, message: str) -> dict:
         system = _CLARIFY_SYSTEM.replace("<<HISTORY>>", self._history_str())
@@ -332,6 +316,17 @@ class LMFDBChat:
             messages=[{"role": "user", "content": message}]
         )
         return _parse(r.content[0].text)
+
+    def _summarise(self, question: str, df) -> str:
+        data_str = df.head(5).to_json(orient="records", indent=2)
+        client = Anthropic()
+        r = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=120,
+            system=_SUMMARISE_SYSTEM.format(data=data_str),
+            messages=[{"role": "user", "content": question}]
+        )
+        return r.content[0].text.strip()
 
     def _provenance_message(self, rows: int) -> str:
         client = Anthropic()
@@ -353,30 +348,23 @@ class LMFDBChat:
 
     def _reply(self, message: str) -> dict:
         return {
-            "message": message,
-            "sql": None,
-            "code": None,
-            "plot": None,
-            "df": None,
-            "error": None,
+            "message": message, "sql": None, "code": None,
+            "plot": None, "df": None, "error": None,
         }
 
     def _error_response(self, message: str) -> dict:
         return {
-            "message": message,
-            "sql": None,
-            "code": None,
-            "plot": None,
-            "df": None,
-            "error": message,
+            "message": message, "sql": None, "code": None,
+            "plot": None, "df": None, "error": message,
         }
 
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _extract_tables(sql: str) -> list[str]:
     pattern = r'(?:FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s+(?:AS\s+)?\w+)?'
     matches = re.findall(pattern, sql, re.IGNORECASE)
-    seen = set()
-    result = []
+    seen, result = set(), []
     for m in matches:
         if m.lower() not in seen:
             seen.add(m.lower())
