@@ -21,8 +21,6 @@ from pipeline.chat import LMFDBChat
 app = FastAPI(title="Conductor")
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-# Set CONDUCTOR_ALLOWED_ORIGINS as a comma-separated list of allowed origins.
-# Defaults to * for development. Set explicitly before public release.
 _raw_origins = os.getenv("CONDUCTOR_ALLOWED_ORIGINS", "*")
 _allowed_origins = (
     [o.strip() for o in _raw_origins.split(",")]
@@ -41,10 +39,6 @@ app.add_middleware(
 # ── Authentication ─────────────────────────────────────────────────────────────
 
 async def verify_api_key(x_api_key: str = Header(..., alias="X-API-Key")):
-    """
-    Validate the X-API-Key header against the CONDUCTOR_API_KEY environment
-    variable. Raises 401 if missing or incorrect, 500 if not configured.
-    """
     expected = os.getenv("CONDUCTOR_API_KEY")
     if not expected:
         raise HTTPException(
@@ -79,7 +73,6 @@ _sessions: dict[str, SessionEntry] = {}
 
 
 def _evict_expired_sessions():
-    """Remove sessions inactive for SESSION_TTL_SECONDS."""
     expired = [sid for sid, entry in _sessions.items() if entry.is_expired()]
     for sid in expired:
         del _sessions[sid]
@@ -105,11 +98,6 @@ _request_timestamps: dict[str, list[float]] = defaultdict(list)
 
 
 def check_rate_limit(session_id: str):
-    """
-    Sliding window rate limiter.
-    Raises HTTP 429 if the session has exceeded RATE_LIMIT_REQUESTS
-    in the last RATE_LIMIT_WINDOW seconds.
-    """
     now = time.time()
     window_start = now - RATE_LIMIT_WINDOW
     _request_timestamps[session_id] = [
@@ -131,6 +119,10 @@ def check_rate_limit(session_id: str):
 class ChatRequest(BaseModel):
     message: str
     verbose: bool = False
+    # Stateless history — passed from frontend on every request
+    history: list[dict] = []
+    last_sql: str | None = None
+    last_tables: list[str] = []
 
 
 class AnalysisRequest(BaseModel):
@@ -158,6 +150,15 @@ def chat(
     sid, session = get_or_create_session(session_id)
     response.set_cookie("session_id", sid, httponly=True, samesite="lax")
     check_rate_limit(sid)
+    # Restore stateless text state from frontend.
+    # last_df is intentionally NOT restored here — it lives server-side only
+    # so follow-up analysis always has access to the full DataFrame.
+    if req.history:
+        session.history = req.history
+    if req.last_sql:
+        session.last_sql = req.last_sql
+    if req.last_tables:
+        session.last_tables = req.last_tables
     return session.chat(req.message, verbose=req.verbose)
 
 
