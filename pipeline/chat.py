@@ -16,19 +16,31 @@ from pipeline.analysis import generate_analysis, execute_analysis
 
 # ── System prompts ────────────────────────────────────────────────────────────
 
-_INTENT_SYSTEM = """You are Conductor, a mathematically knowledgeable assistant with access to the LMFDB (L-functions and Modular Forms Database). You have a warm, understated personality — think a good graduate student who knows their stuff and doesn't waste words.
+_INTENT_SYSTEM = """You are a query classifier for Conductor, an LMFDB interface that CAN generate plots and analyses.
+
+Classify the user message as either QUERY or CHAT.
+
+Output QUERY if the message:
+- Asks for data from the LMFDB database
+- Asks for a plot, graph, chart, or visualisation
+- Asks for analysis of data
+- Refers to previous results and asks to filter, refine, or extend them
+- Is any mathematical question that could be answered with database data
+
+Output CHAT if the message:
+- Is a greeting, thanks, or small talk
+- Asks something unrelated to mathematics or the LMFDB
+- Is a general mathematical question not requiring database lookup
+
+Respond with exactly one word: either QUERY or CHAT. Nothing else."""
+
+_CHAT_SYSTEM = """You are Conductor, a mathematically knowledgeable assistant with access to the LMFDB (L-functions and Modular Forms Database). You have a warm, understated personality — think a good graduate student who knows their stuff and doesn't waste words.
+
+You CAN generate plots and analyses of LMFDB data when asked.
 
 If someone greets you, chats, or thanks you, respond naturally and briefly as yourself. You can show a little personality. Don't be formal.
 
-If someone asks something unrelated to mathematics or the LMFDB — conferences, restaurants, life advice — gently let them know what you're here for, but without being robotic about it.
-
-If you genuinely can't tell whether something is a database query or something else, ask a short natural question to find out.
-
-If the message refers to a previous result, asks for a follow-up database query, requests filtering, refining, or extending prior results, or asks for a plot, graph, chart, visualisation, or analysis of any data — respond with exactly the single word: QUERY
-
-If the message is a new mathematical or database query, respond with exactly the single word: QUERY
-
-Never explain your reasoning. Either respond as yourself using the conversation history for context, or output QUERY."""
+If someone asks something unrelated to mathematics or the LMFDB — conferences, restaurants, life advice — gently let them know what you're here for, but without being robotic about it."""
 
 _CLARIFY_SYSTEM = """You are a mathematical assistant specialising in the LMFDB database.
 Assess whether the user query is clear enough to act on.
@@ -313,29 +325,45 @@ class LMFDBChat:
 
     def _classify_and_respond(self, message: str) -> str | None:
         """
-        Returns None if the message is a database query (proceed through pipeline).
-        Returns a response string if conversational, off-topic, or ambiguous.
-        Passes recent history so the classifier can answer context questions.
+        Returns None if the message is a database/analysis query (proceed through pipeline).
+        Returns a response string if conversational or off-topic.
+        Uses a two-call approach: classify first (max_tokens=10), then respond if CHAT.
         Fails open: returns None on any exception so queries are never blocked.
         """
         client = Anthropic()
-        # Build messages including recent history for context
+
+        # Build recent history for context
         messages = []
-        for m in self.history[:-1][-6:]:  # last 6 turns excluding current message
+        for m in self.history[:-1][-6:]:
             if m["role"] in ("user", "assistant"):
                 messages.append({"role": m["role"], "content": m["content"]})
         messages.append({"role": "user", "content": message})
 
+        # Step 1: classify
         r = client.messages.create(
             model="claude-haiku-4-5",
-            max_tokens=400,
+            max_tokens=10,
             system=_INTENT_SYSTEM,
             messages=messages,
         )
-        result = r.content[0].text.strip()
-        if result == "QUERY":
+        result = r.content[0].text.strip().upper()
+
+        if "QUERY" in result:
             return None
-        return result
+
+        # Step 2: it's CHAT — generate a natural response with full context
+        return self._chat_response(message, messages)
+
+    def _chat_response(self, message: str, messages: list[dict]) -> str:
+        """Generate a natural conversational response with full conversation context."""
+        client = Anthropic()
+        r = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=400,
+            system=_CHAT_SYSTEM,
+            messages=messages,
+        )
+        return r.content[0].text.strip()
 
     def _clarify(self, message: str) -> dict:
         system = _CLARIFY_SYSTEM.replace("<<HISTORY>>", self._history_str())
