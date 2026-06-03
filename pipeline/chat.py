@@ -115,6 +115,9 @@ _MSG_CREDITS = (
     "service issue on our end. Please check back later."
 )
 
+# Keywords that indicate the user wants a plot or visualisation
+_PLOT_KEYWORDS = {"plot", "graph", "chart", "visuali", "scatter", "histogram", "draw", "visualise", "visualize"}
+
 
 class LMFDBChat:
 
@@ -220,6 +223,20 @@ class LMFDBChat:
             reply = f"Query returned {len(df)} rows."
 
         self.history.append({"role": "assistant", "content": reply})
+
+        # Step 8: auto-run analysis if the original message requests a plot
+        wants_plot = any(kw in message.lower() for kw in _PLOT_KEYWORDS)
+
+        if wants_plot:
+            analysis_result = self.run_analysis_turn(message)
+            return {
+                "message": reply,
+                "sql": sql,
+                "code": analysis_result.get("code"),
+                "plot": analysis_result.get("plot"),
+                "df": df.to_dict(orient="records"),
+                "error": analysis_result.get("error"),
+            }
 
         return {
             "message": reply,
