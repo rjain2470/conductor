@@ -49,6 +49,11 @@ Return ONLY a raw JSON object:
 - If clear: {"action": "proceed", "refined_query": "<restate precisely>"}
 - If ambiguous: {"action": "clarify", "question": "<one focused question>"}
 
+When producing a refined_query:
+- Always identify the mathematical object type explicitly (e.g. "elliptic curve over Q", "newform", "Dirichlet character")
+- If a Weierstrass equation is given, identify it as an elliptic curve over Q
+- Translate equation-form queries into object-type queries (e.g. "y² = x³ - x² - 4x + 4" → "the elliptic curve over Q with Weierstrass equation y² = x³ - x² - 4x + 4")
+
 Flag ambiguity only when it would materially change what is queried.
 Do not ask for clarification that is not mathematically necessary.
 
