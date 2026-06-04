@@ -25,12 +25,15 @@ Output QUERY if the message:
 - Asks for a plot, graph, chart, or visualisation
 - Asks for analysis of data
 - Refers to previous results and asks to filter, refine, or extend them
-- Is any mathematical question that could be answered with database data
+- Asks about a specific mathematical object (elliptic curve, modular form, L-function, etc.) by its properties or equation
+- Asks to look up, find, count, or retrieve a mathematical invariant (rank, conductor, integral points, torsion, etc.)
 
 Output CHAT if the message:
 - Is a greeting, thanks, or small talk
-- Asks something unrelated to mathematics or the LMFDB
-- Is a general mathematical question not requiring database lookup
+- Asks something entirely unrelated to mathematics or the LMFDB
+- Asks for a proof or theoretical explanation with no data lookup involved
+
+When in doubt, output QUERY.
 
 Respond with exactly one word: either QUERY or CHAT. Nothing else."""
 
