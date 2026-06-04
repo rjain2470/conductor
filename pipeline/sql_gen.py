@@ -90,6 +90,16 @@ def generate_sql(
     sql = result.get("sql")
 
     if sql:
+        # Programmatically ensure LIMIT is present if LLM missed it
+        if "LIMIT" not in sql.upper():
+            print("WARNING: LLM did not include LIMIT clause. Appending 'LIMIT 100'.")
+            # Try to insert LIMIT before ORDER BY if it exists, otherwise at the end
+            if re.search(r'\\sORDER\\sBY\\s', sql, re.IGNORECASE):
+                sql = re.sub(r'(\\sORDER\\sBY\\s.*)', r' LIMIT 100\\1', sql, flags=re.IGNORECASE)
+            else:
+                sql += " LIMIT 100"
+            result["sql"] = sql # Update the result dictionary with the modified SQL
+
         # Retry once if SELECT * was generated
         if _has_select_star(sql) and not _retry:
             return generate_sql(
@@ -101,7 +111,7 @@ def generate_sql(
 
 def _has_select_star(sql: str) -> bool:
     """Return True if the SQL contains a bare SELECT * or SELECT table.*"""
-    return bool(re.search(r'SELECT\s+(?:\w+\.)?\*', sql, re.IGNORECASE))
+    return bool(re.search(r'SELECT\\s+(?:\\w+\\.)?\\*', sql, re.IGNORECASE))
 
 def _validate(sql: str) -> None:
     upper = sql.upper()
@@ -117,8 +127,8 @@ def _validate(sql: str) -> None:
         )
 
 def _parse(text: str) -> dict:
-    text = re.sub(r"^```(?:json)?\s*", "", text.strip())
-    text = re.sub(r"\s*```$", "", text)
+    text = re.sub(r"^```(?:json)?\\s*", "", text.strip())
+    text = re.sub(r"\\s*```$", "", text)
     text = text.strip()
 
     # Try direct parse first
@@ -128,7 +138,7 @@ def _parse(text: str) -> dict:
         pass
 
     # Fall back: find the JSON object anywhere in the text
-    match = re.search(r'\{.*\}', text, re.DOTALL)
+    match = re.search(r'\\{.*\\}', text, re.DOTALL)
     if match:
         try:
             return json.loads(match.group())
