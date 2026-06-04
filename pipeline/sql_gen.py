@@ -11,16 +11,13 @@ from anthropic import Anthropic
 _schema_path = Path(__file__).parent.parent / "schema" / "lmfdb_schema.json"
 _prompt_path = Path(__file__).parent.parent / "prompts" / "sql_prompt.txt"
 
-
 def _load_full_schema() -> dict:
     with open(_schema_path) as f:
         return json.load(f)["tables"]
 
-
 def _load_prompt() -> str:
     with open(_prompt_path) as f:
         return f.read()
-
 
 _FULL_SCHEMA = _load_full_schema()
 _PROMPT_TEMPLATE = _load_prompt()
@@ -45,9 +42,12 @@ def generate_sql(
     Return {"sql": "...", "explanation": "..."}.
     sql is None if the query cannot be answered with a single SELECT.
 
-    lookup_info: if provided by pipeline/lookup.py, injects a mandatory WHERE
-    filter for the specific object that was identified. Array values require
-    a ::numeric[] cast which is included automatically.
+    lookup_info: optional dict from pipeline.lookup.resolve with keys
+        table, column, value — injects a CRITICAL WHERE constraint into the
+        prompt so the model cannot omit it.
+
+    If the generated SQL uses SELECT *, retries once with an explicit instruction
+    to name columns.
     """
     schema_slice = {t: _FULL_SCHEMA[t] for t in tables if t in _FULL_SCHEMA}
     prompt = _PROMPT_TEMPLATE
@@ -55,34 +55,25 @@ def generate_sql(
     if _retry:
         prompt = prompt + _SELECT_STAR_NOTE
 
-    # Inject lookup constraint if a specific object was identified
     if lookup_info:
-        value = lookup_info["value"]
-        column = lookup_info["column"]
         table = lookup_info["table"]
-
-        # Array columns are numeric[] in PostgreSQL — integer[] will fail
-        if isinstance(value, list):
-            value_repr = f"ARRAY{value}::numeric[]"
-        else:
-            value_repr = f"'{value}'"
-
-        lookup_note = (
-            f"\n\nCRITICAL: This query references a specific mathematical object. "
+        column = lookup_info["column"]
+        value = lookup_info["value"]
+        value_repr = f"ARRAY{value}::numeric[]" if isinstance(value, list) else f"'{value}'"
+        prompt = prompt + (
+            f"\n\nCRITICAL: This query references a specific mathematical object "
+            f"that has already been resolved to a database identifier. "
             f"You MUST include this exact filter in the WHERE clause: "
             f"{column} = {value_repr} "
-            f"(this column is in table {table}). "
-            f"The ::numeric[] cast is required for array comparison — "
-            f"omitting it will cause a PostgreSQL type error. "
-            f"Do not omit this filter under any circumstances."
+            f"Do not omit this filter under any circumstances. "
+            f"Do not paraphrase or rewrite it."
         )
-        prompt = prompt + lookup_note
 
     system = prompt.replace("<<SCHEMA>>", json.dumps(schema_slice, indent=2))
     client = Anthropic()
     r = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=2048,
+        max_tokens=1024,
         system=system,
         messages=[{"role": "user", "content": query}]
     )
@@ -90,28 +81,19 @@ def generate_sql(
     sql = result.get("sql")
 
     if sql:
-        # Programmatically ensure LIMIT is present if LLM missed it
-        if "LIMIT" not in sql.upper():
-            print("WARNING: LLM did not include LIMIT clause. Appending 'LIMIT 100'.")
-            # Try to insert LIMIT before ORDER BY if it exists, otherwise at the end
-            if re.search(r'\\sORDER\\sBY\\s', sql, re.IGNORECASE):
-                sql = re.sub(r'(\\sORDER\\sBY\\s.*)', r' LIMIT 100\\1', sql, flags=re.IGNORECASE)
-            else:
-                sql += " LIMIT 100"
-            result["sql"] = sql # Update the result dictionary with the modified SQL
-
-        # Retry once if SELECT * was generated
+        # If SELECT * and this isn't already a retry, retry once
         if _has_select_star(sql) and not _retry:
-            return generate_sql(
-                query, tables, lookup_info=lookup_info, _retry=True
-            )
+            return generate_sql(query, tables, lookup_info=lookup_info, _retry=True)
         _validate(sql)
 
     return result
 
+
 def _has_select_star(sql: str) -> bool:
     """Return True if the SQL contains a bare SELECT * or SELECT table.*"""
-    return bool(re.search(r'SELECT\\s+(?:\\w+\\.)?\\*', sql, re.IGNORECASE))
+    # Match SELECT * or SELECT alias.* but not COUNT(*)
+    return bool(re.search(r'SELECT\s+(?:\w+\.)?\*', sql, re.IGNORECASE))
+
 
 def _validate(sql: str) -> None:
     upper = sql.upper()
@@ -126,22 +108,8 @@ def _validate(sql: str) -> None:
             "Please name the specific columns you need."
         )
 
+
 def _parse(text: str) -> dict:
-    text = re.sub(r"^```(?:json)?\\s*", "", text.strip())
-    text = re.sub(r"\\s*```$", "", text)
-    text = text.strip()
-
-    # Try direct parse first
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-
-    # Fall back: find the JSON object anywhere in the text
-    match = re.search(r'\\{.*\\}', text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group())
-        except json.JSONDecodeError:
-            pass
-    return {}
+    text = re.sub(r"^```(?:json)?\s*", "", text.strip())
+    text = re.sub(r"\s*```$", "", text)
+    return json.loads(text.strip())
