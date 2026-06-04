@@ -124,7 +124,49 @@ _MSG_CREDITS = (
 )
 
 # Keywords that indicate the user wants a plot or visualisation
-_PLOT_KEYWORDS = {"plot", "graph", "chart", "visuali", "scatter", "histogram", "draw", "visualise", "visualize"}
+_PLOT_KEYWORDS = {
+    "plot", "graph", "chart", "visuali", "scatter",
+    "histogram", "draw", "visualise", "visualize"
+}
+
+# Keywords that indicate a mathematical/database query — bypass LLM classifier
+_MATH_KEYWORDS = {
+    # Object types
+    "elliptic curve", "modular form", "l-function", "l function",
+    "dirichlet character", "dirichlet", "newform", "oldform",
+    "maass form", "maass", "hilbert modular", "bianchi",
+    "siegel modular", "genus-2", "genus 2", "abelian variety",
+    "hypergeometric motive", "artin representation", "artin",
+    "number field", "local field", "finite field", "galois group",
+    "isogeny class", "modular curve", "lattice",
+    # Invariants and properties
+    "conductor", "discriminant", "rank", "analytic rank",
+    "integral point", "torsion", "regulator", "sha",
+    "weierstrass", "isogeny", "bsd", "birch", "swinnerton",
+    "j-invariant", "jinv", "cm field", "complex multiplication",
+    "bad prime", "reduction", "kodaira", "tamagawa",
+    "hecke", "eigenvalue", "eigenform", "level", "weight",
+    "character", "nebentypus", "atkin", "fricke",
+    "root number", "functional equation", "gamma factor",
+    "zero", "zeros", "order of vanishing", "analytic conductor",
+    "euler factor", "euler product", "dirichlet series",
+    "symmetric square", "tensor product", "rankin",
+    "galois representation", "mod-l", "adelic",
+    "selmer group", "descent", "height", "canonical height",
+    "mordell", "weil", "faltings", "szpiro",
+    "p-adic", "iwasawa", "lambda invariant", "mu invariant",
+    # Equation forms
+    "y^2", "y²", "x^3", "x³", "weierstrass equation",
+    "minimal model", "ainvs",
+    # Actions implying lookup
+    "how many", "find all", "list all", "give me", "fetch",
+    "retrieve", "look up", "search for",
+    "plot", "graph", "chart", "scatter", "histogram",
+    "visuali", "draw", "analyse", "analyze",
+    # Field/domain terms
+    "over q", "rational point", "integer point", "integral",
+    "lmfdb", "database",
+}
 
 
 class LMFDBChat:
@@ -316,7 +358,6 @@ class LMFDBChat:
                 "error": error_detail,
             }
 
-        # Append provenance to analysis response if tables are known
         msg = explanation
         if self.last_tables:
             msg = explanation + (
@@ -352,9 +393,19 @@ class LMFDBChat:
         """
         Returns None if the message is a database/analysis query (proceed through pipeline).
         Returns a response string if conversational or off-topic.
-        Uses a two-call approach: classify first (max_tokens=10), then respond if CHAT.
+
+        First checks a keyword list — if any math keyword is present, routes directly
+        to the pipeline without calling the LLM classifier. This prevents the LLM from
+        "solving" mathematical questions itself rather than looking them up.
+
+        Falls back to LLM classification for ambiguous messages.
         Fails open: returns None on any exception so queries are never blocked.
         """
+        # Fast path: if any math keyword present, always route to pipeline
+        msg_lower = message.lower()
+        if any(kw in msg_lower for kw in _MATH_KEYWORDS):
+            return None
+
         client = Anthropic()
 
         # Build recent history for context
@@ -364,7 +415,7 @@ class LMFDBChat:
                 messages.append({"role": m["role"], "content": m["content"]})
         messages.append({"role": "user", "content": message})
 
-        # Step 1: classify
+        # Classify with LLM
         r = client.messages.create(
             model="claude-haiku-4-5",
             max_tokens=10,
@@ -376,7 +427,7 @@ class LMFDBChat:
         if "QUERY" in result:
             return None
 
-        # Step 2: it's CHAT — generate a natural response with full context
+        # It's CHAT — generate a natural response
         return self._chat_response(message, messages)
 
     def _chat_response(self, message: str, messages: list[dict]) -> str:
@@ -447,10 +498,7 @@ class LMFDBChat:
 # ── Module-level helpers ──────────────────────────────────────────────────────
 
 def _extract_tables(sql: str) -> list[str]:
-    """
-    Extract table names from a SQL query.
-    Finds names after FROM and JOIN keywords.
-    """
+    """Extract table names from a SQL query (after FROM and JOIN keywords)."""
     pattern = r'(?:FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s+(?:AS\s+)?\w+)?'
     matches = re.findall(pattern, sql, re.IGNORECASE)
     seen = set()
