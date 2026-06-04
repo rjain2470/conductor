@@ -12,6 +12,7 @@ from anthropic import Anthropic
 from pipeline.router import route
 from pipeline.sql_gen import generate_sql
 from pipeline.executor import execute_sql
+from pipeline.lookup import resolve
 from pipeline.analysis import generate_analysis, execute_analysis
 
 # ── System prompts ────────────────────────────────────────────────────────────
@@ -208,6 +209,12 @@ class LMFDBChat:
 
         query = clarification["refined_query"]
 
+        # Step 2.5: resolve concrete mathematical objects (equations, labels, polynomials)
+        query, lookup_info = resolve(query)
+
+        if verbose:
+            print(f"  Lookup: {lookup_info}")
+
         # Step 3: route to tables
         try:
             tables = route(query, history=self._history_str())
@@ -225,7 +232,7 @@ class LMFDBChat:
 
         # Step 4: generate SQL
         try:
-            sql_result = generate_sql(query, tables)
+            sql_result = generate_sql(query, tables, lookup_info=lookup_info)
         except Exception as e:
             reply = _categorise(e)
             self.history.append({"role": "assistant", "content": reply})
