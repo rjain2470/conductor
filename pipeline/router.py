@@ -48,7 +48,9 @@ Rules:
 - Use column hints to confirm a table is relevant before including it.
 - Prefer precision: do not include tables speculatively.
 - Never include belyi_galmaps_prim — it does not exist in the database.
-- For murmuration queries (average a_p by rank): include ec_classdata and ec_curvedata.
+Special cases:
+- If the query gives a Weierstrass equation y² + a1*x*y + a3*y = x³ + a2*x² + a4*x + a6, route to ec_curvedata. The curve can be found by filtering on ainvs = ARRAY[a1,a2,a3,a4,a6]::numeric[].
+- If the query asks for integral points on a specific elliptic curve, route to ec_curvedata (num_int_pts column stores the count).
 
 Schema index:
 """ + _ROUTING_INDEX
