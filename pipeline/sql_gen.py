@@ -82,7 +82,7 @@ def generate_sql(
     client = Anthropic()
     r = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=512,
+        max_tokens=2048,
         system=system,
         messages=[{"role": "user", "content": query}]
     )
@@ -119,4 +119,19 @@ def _validate(sql: str) -> None:
 def _parse(text: str) -> dict:
     text = re.sub(r"^```(?:json)?\s*", "", text.strip())
     text = re.sub(r"\s*```$", "", text)
-    return json.loads(text.strip())
+    text = text.strip()
+
+    # Try direct parse first
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Fall back: find the JSON object anywhere in the text
+    match = re.search(r'\{.*\}', text, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+    return {}
