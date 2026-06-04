@@ -28,12 +28,12 @@ By utilizing modern methods in prompt engineering, text-to-SQL, and AI-powered d
 TBD.
 
 # Architecture 🏛️
-# Architecture 🏛️
 <img align="right" width="300" src="assets/conductor_flowchart.png" alt="Conductor's backend pipeline." />
 The backend of Conductor consists of a seven-stage FastAPI pipeline with error handling. We utilize Claude Haiku 4.5 for classification, else we use Claude Sonnet 4.6, which handles user interactions and more complicated tasks. It works as follows:
+
 0. An intent classifier determines whether the incoming message is a mathematical query or a conversational message. Conversational messages receive a natural response and skip all subsequent stages.
 1. An LLM-as-judge assesses query precision before any database interaction. If the query is ambiguous, it asks a followup question. If clear, it returns a refined restatement passed to all subsequent stages.
-2. A lightweight object resolution stage fires when the query references a concrete mathematical object  and resolves it to a database identifier. If no concrete object is found, the query passes through unchanged.
+2. A lightweight object resolution stage fires when the query references a concrete mathematical object and resolves it to a database identifier. If no concrete object is found, the query passes through unchanged.
 3. Our LLM maps the query to a list of relevant LMFDB table names using a two-layer hierarchical schema index (16 domains, 86 tables).
 4. Our LLM produces a validated SQL query using the tables identified in Stage 3. Correctness is enforced by using our preloaded schema as a ground truth.
 5. We run the SQL over a read-only SQLAlchemy connection with a 15-second timeout, returning a pandas DataFrame.
