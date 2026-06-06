@@ -24,8 +24,8 @@ By utilizing modern methods in prompt engineering, text-to-SQL, and AI-powered d
 - Python 3.12+
 - Access to the LMFDB PostgreSQL mirror (default: `devmirror.lmfdb.xyz`)
 
-## Installation 🔌
-TBD.
+## Access 🌐
+Conductor is available at [conductormath.org](https://conductormath.org).
 
 # Architecture 🏛️
 <img align="right" width="300" src="assets/conductor_flowchart.png" alt="Conductor's backend pipeline." />
