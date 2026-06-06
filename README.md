@@ -1,3 +1,4 @@
+[![Website](https://img.shields.io/badge/website-conductormath.org-006BCF)](https://conductormath.org)
 # Conductor 🔋
 
 Conductor is a natural language interface to the [LMFDB](https://www.lmfdb.org) (L-functions and Modular Forms Database). It translates mathematical questions into SQL, executes them against the LMFDB PostgreSQL database, and returns structured data with optional exploratory analysis and plots. It is designed to make the rich collection of mathematical data in the LMFDB more accessible for exploration, research, and teaching.
@@ -17,15 +18,6 @@ For instance, a mathematician can directly ask Conductor the following questions
 > **Give me a table of the weight-2 newforms with CM at squarefree levels under 500.**
 
 By utilizing modern methods in prompt engineering, text-to-SQL, and AI-powered data analysis, Conductor allows users to spend less time navigating databases and more time exploring mathematical questions.
-
-# Setup 
-
-## Prerequisites 🟡
-- Python 3.12+
-- Access to the LMFDB PostgreSQL mirror (default: `devmirror.lmfdb.xyz`)
-
-## Access 🌐
-Conductor is available at [conductormath.org](https://conductormath.org).
 
 # Architecture 🏛️
 <img align="right" width="300" src="assets/conductor_flowchart.png" alt="Conductor's backend pipeline." />
