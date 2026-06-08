@@ -19,15 +19,15 @@ import re
 from pathlib import Path
 from anthropic import Anthropic
 
-_index_path = Path(__file__).parent.parent / "schema" / "routing_index.json"
+_index_path = Path(__file__).parent.parent / "schema" / "schema_index.json"
 
 
-def _load_routing_index() -> str:
+def _load_schema_index() -> str:
     with open(_index_path) as f:
         return json.dumps(json.load(f), indent=2)
 
 
-_ROUTING_INDEX = _load_routing_index()
+_SCHEMA_INDEX = _load_schema_index()
 
 _SYSTEM = """You are the routing layer of a natural language interface to the LMFDB PostgreSQL database.
 
@@ -50,10 +50,9 @@ Rules:
 - Never include belyi_galmaps_prim — it does not exist in the database.
 Special cases:
 - If the query gives a Weierstrass equation y² + a1*x*y + a3*y = x³ + a2*x² + a4*x + a6, route to ec_curvedata. The curve can be found by filtering on ainvs = ARRAY[a1,a2,a3,a4,a6]::numeric[].
-- If the query asks for integral points on a specific elliptic curve, route to ec_curvedata (num_int_pts column stores the count).
 
 Schema index:
-""" + _ROUTING_INDEX
+""" + _SCHEMA_INDEX
 
 
 def route(query: str, history: str = "") -> list[str]:

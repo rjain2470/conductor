@@ -4,8 +4,8 @@
     "classical_modular_forms": {
       "description": "Classical holomorphic modular forms on GL(2)/Q, including newforms, newspaces, Hecke data, twists, and auxiliary spaces.",
       "tables": {
-        "mf_newforms": "Galois orbits of newforms; key cols: label, level, weight, char_orbit_label (NOT char_label), char_order, dim, analytic_rank, is_cm, is_rm, fricke_eigenval, traces, level_is_squarefree, level_is_prime, level_is_square, level_radical, sato_tate_group, projective_image, artin_degree, minimal_twist",
-        "mf_newspaces": "Newspaces S_k^new(N,chi); key cols: label, level, weight, char_orbit_label (NOT char_label), char_order, dim, num_forms, sturm_bound, mf_dim, cusp_dim, eis_dim, plus_dim, dihedral_dim, hecke_orbit_dims, level_is_squarefree, level_is_prime",
+        "mf_newforms": "Galois orbits of newforms; key cols: label, level, weight, char_orbit_label (character / nebentypus orbit; NOT char_label), char_order, dim, analytic_rank, is_cm (complex multiplication), is_rm, fricke_eigenval (Atkin-Lehner / Fricke eigenvalue), traces, level_is_squarefree, level_is_prime, level_is_square, level_radical, sato_tate_group, projective_image, artin_degree, minimal_twist",
+        "mf_newspaces": "Newspaces S_k^new(N,chi); key cols: label, level, weight, char_orbit_label (character / nebentypus orbit; NOT char_label), char_order, dim, num_forms, sturm_bound, mf_dim, cusp_dim, eis_dim, plus_dim, dihedral_dim, hecke_orbit_dims, level_is_squarefree, level_is_prime",
         "mf_hecke_cc": "Hecke eigenvalues at complex embeddings; key cols: label, level, weight, hecke_orbit, embedding_m, embedding_index, conrey_index, an_normalized, angles",
         "mf_hecke_nf": "Hecke eigenvalues over the coefficient number field; key cols: label, level, weight, hecke_orbit_code, an (jsonb), ap (jsonb), field_poly, maxp",
         "mf_hecke_traces": "Hecke trace data by index; key cols: hecke_orbit_code, n, trace_an",
@@ -53,15 +53,15 @@
     "l_functions": {
       "description": "L-functions and their instances. Use lfunc_search for filtered searches; use lfunc_lfunctions for full data; use lfunc_instances to join L-functions to source objects.",
       "tables": {
-        "lfunc_lfunctions": "Full L-function data; key cols: label, Lhash, degree, conductor, motivic_weight, root_number (text), symmetry_type, order_of_vanishing, primitive, self_dual, algebraic, st_group, positive_zeros, z1, z2, z3, dirichlet_coefficients, a2-a10, A2-A10, gamma_factors, bad_lfactors",
-        "lfunc_search": "Search-optimised L-function view; key cols: label, degree, conductor, motivic_weight, order_of_vanishing, primitive, self_dual, algebraic, rational, symmetry_type, z1, root_angle, instance_types, instance_urls, is_instance_CMF, is_instance_ECQ, is_instance_Artin, euler2 through euler97",
+        "lfunc_lfunctions": "Full L-function data; key cols: label, Lhash, degree, conductor, motivic_weight, root_number (text; sign of the functional equation), symmetry_type, order_of_vanishing (analytic rank), primitive, self_dual, algebraic, st_group, positive_zeros, z1 (first / lowest zero), z2, z3, dirichlet_coefficients, a2-a10, A2-A10, gamma_factors, bad_lfactors",
+        "lfunc_search": "Search-optimised L-function view; key cols: label, degree, conductor, motivic_weight, order_of_vanishing (analytic rank), primitive, self_dual, algebraic, rational, symmetry_type, z1 (first / lowest zero), root_angle, instance_types, instance_urls, is_instance_CMF, is_instance_ECQ, is_instance_Artin, euler2 through euler97",
         "lfunc_instances": "Object-to-L-function links; key cols: label, Lhash, type (CMF/EC/G2C/NF/DIR/Artin), url — use for joins between source objects and lfunc_lfunctions"
       }
     },
     "elliptic_curves": {
-      "description": "Elliptic curves over Q and number fields, including Mordell-Weil data, BSD invariants, local reduction data, Galois representations, and p-adic data.",
+      "description": "Elliptic curves over Q and number fields. Core search invariants — rank, conductor, Weierstrass coefficients (a-invariants), j-invariant, torsion, CM, discriminant — all live in ec_curvedata. Also covers Mordell-Weil generators and BSD invariants, local reduction data, Galois representations, and p-adic data.",
       "tables": {
-        "ec_curvedata": "Elliptic curves over Q; PRIMARY KEY is lmfdb_label (e.g. 11.a1); key cols: lmfdb_label, Clabel, conductor, ainvs, rank, analytic_rank, torsion (NOT torsion_order), torsion_structure, cm, bad_primes, jinv, isogeny_degrees, sha, regulator, squarefree_disc, semistable, szpiro_ratio, abc_quality, modell_images, nonmax_primes, faltings_height, degree, manin_constant",
+        "ec_curvedata": "Elliptic curves over Q; PRIMARY KEY is lmfdb_label (e.g. 11.a1); key cols: lmfdb_label, Clabel (Cremona label), conductor, ainvs (Weierstrass coefficients / a-invariants [a1,a2,a3,a4,a6]), rank, analytic_rank, torsion (NOT torsion_order), torsion_structure, cm, bad_primes, jinv (j-invariant), isogeny_degrees, sha, regulator, squarefree_disc, semistable, szpiro_ratio, abc_quality, modell_images, nonmax_primes, faltings_height, degree, manin_constant, num_int_pts (number of integral points)",
         "ec_classdata": "Isogeny classes; key cols: label, conductor, rank, class_size, class_deg",
         "ec_mwbsd": "Mordell-Weil and BSD data; key cols: lmfdb_label, gens, heights, ngens, real_period (numeric), sha_an (numeric), special_value (numeric), tamagawa_product — NOTE: real_period/sha_an/special_value are plain numeric",
         "ec_localdata": "Local reduction at bad primes; key cols: lmfdb_label, prime, reduction_type, root_number, kodaira_symbol, tamagawa_number, conductor_valuation, discriminant_valuation",
@@ -85,7 +85,7 @@
     "abelian_varieties": {
       "description": "Isogeny classes of abelian varieties over finite fields, with endomorphism algebra data.",
       "tables": {
-        "av_fq_isog": "Abelian variety isogeny classes over F_q; key cols: label, g (genus), q, p_rank, Newton_polygon, polynomial, decomposition, is_simple, is_geometrically_simple, principally_polarizable, jacobian",
+        "av_fq_isog": "Abelian variety isogeny classes over F_q; key cols: label, g (genus), p (characteristic), q (field size), poly (Weil polynomial; poly_str is the string form), slopes (Newton slopes), p_rank, angle_rank, is_simple, is_geometrically_simple, is_supersingular, has_jacobian, has_principal_polarization, jacobian_count, principal_polarization_count, is_squarefree, splitting_field",
         "av_fq_endalg_data": "Endomorphism algebra data; key cols: label, center, galois_group, places, brauer_invariants",
         "av_fq_endalg_factors": "Endomorphism algebra factors; key cols: base_label, extension_label, extension_degree, multiplicity"
       }
@@ -93,7 +93,7 @@
     "number_fields": {
       "description": "Number fields over Q, with Galois groups, class groups, regulators, and auxiliary data including reflex fields and extra invariants.",
       "tables": {
-        "nf_fields": "Number fields; key cols: label, degree, r2, disc_abs, disc_sign, disc_rad, class_number, narrow_class_number, regulator, galois_label (e.g. 4T3), galt, is_galois, gal_is_abelian, gal_is_cyclic, gal_is_solvable, cm, ramps, num_ram, conductor, monogenic, coeffs, used_grh",
+        "nf_fields": "Number fields; key cols: label, degree, r2 (number of complex places; signature is [degree-2*r2, r2]), disc_abs, disc_sign, disc_rad, class_number, narrow_class_number, regulator, galois_label (Galois group, e.g. 4T3), galt, is_galois, gal_is_abelian, gal_is_cyclic, gal_is_solvable, cm, ramps, num_ram, conductor, monogenic, coeffs (defining polynomial coefficients), used_grh",
         "nf_fields_extra": "Extra number field data; key cols: label, units, zk (integral basis), frobs, dirichlet_group",
         "nf_fields_reflex": "Reflex fields of CM fields; key cols: nf_label, rf_coeffs, multiplicity, CM_types, galois_orbits"
       }
@@ -123,7 +123,7 @@
       "description": "Hypergeometric motive families H(alpha,beta) and their specialisations.",
       "tables": {
         "hgm_families": "HGM families; key cols: label, degree, weight, hodge_vector, gal_label, is_primitive, conductor_label, wild_primes",
-        "hgm_motives": "HGM specialisations; key cols: label, family, t (specialisation value), conductor, degree, weight, hodge_vector, sign, order_of_vanishing, is_primitive",
+        "hgm_motives": "HGM specialisations H(A,B) at parameter t; key cols: label, A (alpha parameters), B (beta parameters), t (specialisation value), cond (conductor; column is 'cond' NOT 'conductor'), degree, weight (motivic weight), sign (sign of functional equation), hodge (Hodge vector), famhodge (family Hodge vector), centralval (central L-value)",
         "hgm_monodromy": "HGM monodromy groups; key cols: label, family, monodromy_group, zariski_closure",
         "hgm_euler_survey": "HGM Euler factors; key cols: family, p, t, euler_factor"
       }

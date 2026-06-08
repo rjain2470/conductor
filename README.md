@@ -65,7 +65,7 @@ conductor/
 │   └── chat.py              # Orchestrator: session state, error handling
 ├── schema/
 │   ├── lmfdb_schema.json    # Full schema: 86 tables, 2,006 columns
-│   └── routing_index.json   # Two-layer routing index
+│   └── schema_index.json    # Two-layer routing index (domains → tables)
 ├── prompts/
 │   ├── sql_prompt.txt       # SQL generation system prompt
 │   ├── analysis_prompt.txt  # Analysis generation system prompt

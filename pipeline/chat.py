@@ -107,6 +107,12 @@ _MSG_ROUTER_FAILED = (
     "for example, 'elliptic curves over Q' rather than 'curves'."
 )
 
+_MSG_CLARIFY_FAILED = (
+    "I had trouble interpreting your request. "
+    "Please try rephrasing it — naming the mathematical object and the property "
+    "you are interested in usually helps."
+)
+
 _MSG_ANALYSIS_FAILED = (
     "I retrieved the data successfully ({rows} rows) but was unable to generate "
     "the analysis or plot you requested. "
@@ -200,7 +206,7 @@ class LMFDBChat:
         try:
             clarification = self._clarify(message)
         except Exception as e:
-            return self._error_response(_categorise(e))
+            return self._error_response(_categorise(e, _MSG_CLARIFY_FAILED))
 
         if clarification["action"] == "clarify":
             reply = clarification["question"]
@@ -223,7 +229,7 @@ class LMFDBChat:
             self.history.append({"role": "assistant", "content": reply})
             return self._error_response(reply)
         except Exception as e:
-            reply = _categorise(e)
+            reply = _categorise(e, _MSG_ROUTER_FAILED)
             self.history.append({"role": "assistant", "content": reply})
             return self._error_response(reply)
 
@@ -234,7 +240,7 @@ class LMFDBChat:
         try:
             sql_result = generate_sql(query, tables, lookup_info=lookup_info)
         except Exception as e:
-            reply = _categorise(e)
+            reply = _categorise(e, _MSG_SQL_FAILED)
             self.history.append({"role": "assistant", "content": reply})
             return self._error_response(reply)
 
@@ -326,7 +332,7 @@ class LMFDBChat:
         except Exception as e:
             error_msg = _MSG_ANALYSIS_FAILED.format(
                 rows=len(self.last_df),
-                error=_categorise(e)
+                error=_categorise(e, str(e).split("\n")[0])
             )
             return {"message": error_msg, "code": None, "plot": None, "error": str(e)}
 
@@ -517,14 +523,21 @@ def _extract_tables(sql: str) -> list[str]:
     return result
 
 
-def _categorise(exc: Exception) -> str:
-    """Map an exception to a human-readable error message."""
+def _categorise(exc: Exception, default: str = _MSG_ROUTER_FAILED) -> str:
+    """
+    Map an exception to a human-readable error message.
+
+    Global API conditions (rate limiting, exhausted credits) are detected and
+    returned regardless of which stage raised. Otherwise the caller-supplied
+    `default` is returned, so the message reflects the pipeline stage that
+    actually failed rather than always blaming routing.
+    """
     msg = str(exc)
     if "rate_limit" in msg.lower() or "429" in msg:
         return _MSG_RATE_LIMITED
     if "credit balance" in msg.lower() or "too low" in msg.lower() or "402" in msg:
         return _MSG_CREDITS
-    return _MSG_ROUTER_FAILED
+    return default
 
 
 def _parse(text: str) -> dict:
