@@ -9,9 +9,11 @@ NOTE: CORS is open for now; tighten allow_origins before public release once fro
 import os
 import time
 import uuid
+import threading
 from collections import defaultdict
 from typing import Optional
 
+import psycopg2
 from fastapi import Depends, FastAPI, Header, HTTPException, Cookie, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -114,6 +116,61 @@ def check_rate_limit(session_id: str):
     _request_timestamps[session_id].append(now)
 
 
+# ── Interaction logging ─────────────────────────────────────────────────────────
+
+_LOG_DB_URL = os.getenv("CONDUCTOR_LOG_DB_URL")
+
+
+def _log_interaction(
+    session_id: Optional[str],
+    question: str,
+    result: dict,
+    query_type: Optional[str],
+    tables: Optional[list],
+) -> None:
+    """
+    Fire-and-forget logging of a completed /chat interaction to Supabase.
+
+    query_type and tables come from the session (they are not in the result dict).
+    Runs in a daemon thread so it never blocks the response, and swallows every
+    error so a logging failure can never affect the user. Skips silently when
+    CONDUCTOR_LOG_DB_URL is not configured.
+    """
+    if not _LOG_DB_URL:
+        return
+
+    def _write():
+        try:
+            conn = psycopg2.connect(_LOG_DB_URL)
+            try:
+                with conn, conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO interactions
+                            (session_id, question, query_type, sql, tables,
+                             has_plot, has_df, error, message)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            session_id,
+                            question,
+                            query_type,
+                            result.get("sql"),
+                            tables,  # list -> Postgres text[]; None -> NULL
+                            result.get("plot") is not None,
+                            bool(result.get("df")),
+                            result.get("error"),
+                            result.get("message"),
+                        ),
+                    )
+            finally:
+                conn.close()
+        except Exception:
+            pass  # fail silently — logging must never affect the response
+
+    threading.Thread(target=_write, daemon=True).start()
+
+
 # ── Request / response models ─────────────────────────────────────────────────
 
 class ChatRequest(BaseModel):
@@ -162,7 +219,13 @@ def chat(
         session.last_sql = req.last_sql
     if req.last_tables:
         session.last_tables = req.last_tables
-    return session.chat(req.message, verbose=req.verbose)
+    result = session.chat(req.message, verbose=req.verbose)
+    # Log after the response is ready; non-blocking and best-effort.
+    # query_type and tables come from the session, not the result dict.
+    _log_interaction(
+        sid, req.message, result, session.last_query_type, session.last_tables
+    )
+    return result
 
 
 @app.post("/analysis")
