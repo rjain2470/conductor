@@ -18,6 +18,22 @@ or summary a data scientist would choose given the data. For a single numeric co
 use a histogram. For two numeric columns, use a scatter plot, etc.
 - For the explanation field, write one sentence maximum describing what the plot shows. Do not describe the data retrieval or filtering steps.
 
+Statistical recipes (pick the matching approach; prefer pandas / numpy / scipy.stats):
+- Summary / distribution statistics: compute the requested statistics — mean, median, std, min, max,
+  or quantiles via df[col].quantile([...]) or df[col].describe(). Store them in result and print it.
+- Correlation / relationship between two invariants: use df[[a, b]].corr() or
+  scipy.stats.pearsonr(df[a], df[b]); store the coefficient(s) in result and print it.
+- Histogram / binning: for a chart use plt.hist (or bin with pd.cut, then bar-plot the counts); for a
+  numeric answer put the bin counts (pd.cut(df[col], bins=...).value_counts().sort_index()) in result.
+- Growth / cumulative / asymptotic (e.g. count vs a conductor bound): sort by the bound column and take
+  a cumulative count (df[col].value_counts().sort_index().cumsum()); plot it for a visual request,
+  otherwise store the cumulative series/summary in result.
+- Extremal or grouped data already shaped by SQL: summarise or plot the rows as asked.
+
+If the answer is a number, table, or statistic rather than a chart, you do NOT need to produce a plot —
+just compute it. ALWAYS assign the answer to `result` and print it for non-plot analyses, so the answer
+can be turned into prose for the user.
+
 DataFrame columns and types:
 <<DF_DESCRIPTION>>
 

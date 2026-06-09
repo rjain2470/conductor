@@ -8,12 +8,23 @@ Error handling:
 
 import re
 import json
+from pathlib import Path
 from anthropic import Anthropic
 from pipeline.router import route
 from pipeline.sql_gen import generate_sql
 from pipeline.executor import execute_sql
 from pipeline.lookup import resolve
 from pipeline.analysis import generate_analysis, execute_analysis
+
+_SYNTHESIS_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "synthesis_prompt.txt"
+
+
+def _load_synthesis_prompt() -> str:
+    with open(_SYNTHESIS_PROMPT_PATH) as f:
+        return f.read()
+
+
+_SYNTHESIS_PROMPT = _load_synthesis_prompt()
 
 # ── System prompts ────────────────────────────────────────────────────────────
 
@@ -46,37 +57,96 @@ If someone greets you, chats, or thanks you, respond naturally and briefly as yo
 
 If someone asks something unrelated to mathematics or the LMFDB — conferences, restaurants, life advice — gently let them know what you're here for, but without being robotic about it."""
 
-_CLARIFY_SYSTEM = """You are a mathematical assistant specialising in the LMFDB database.
-Assess whether the user query is clear enough to act on.
+_PLAN_SYSTEM = """You are the query planner for Conductor, a natural-language interface to the LMFDB.
+Given the user's latest message and the conversation so far, decide whether the request is clear
+enough to act on, restate it as a self-contained query, and classify how it should be answered.
 
-Return ONLY a raw JSON object:
-- If clear: {"action": "proceed", "refined_query": "<restate precisely>"}
-- If ambiguous: {"action": "clarify", "question": "<one focused question>"}
+Return ONLY a raw JSON object (no markdown, no backticks, no prose) with these keys:
 
-When producing a refined_query:
-- Always identify the mathematical object type explicitly (e.g. "elliptic curve over Q", "newform", "Dirichlet character")
-- If a Weierstrass equation is given, identify it as an elliptic curve over Q
-- Translate equation-form queries into object-type queries (e.g. "y² = x³ - x² - 4x + 4" → "the elliptic curve over Q with Weierstrass equation y² = x³ - x² - 4x + 4")
+{
+  "action": "proceed" | "clarify",
+  "question": "<one focused question, else \\"\\">",
+  "refined_query": "<standalone restatement of what to query>",
+  "query_type": "scalar" | "boolean" | "count" | "aggregate" | "tabular" | "analytical" | "prose",
+  "output_format": "prose" | "table" | "plot",
+  "needs_analysis": true | false,
+  "analysis_instruction": "<what the Python analysis step should compute, else \\"\\">",
+  "sql_hint": "<optional shaping hint for SQL generation, else \\"\\">"
+}
 
-Flag ambiguity only when it would materially change what is queried.
+REFINED QUERY (resolve context):
+- Produce a fully self-contained refined_query. Resolve pronouns and ellipsis ("that", "those",
+  "what about rank 3", "now restrict to prime conductor") against the conversation history.
+- Carry forward every constraint from the previous turn that the new message does not change; only
+  override the specific constraints the new message changes.
+- Always name the mathematical object type explicitly (e.g. "elliptic curves over Q", "newforms").
+- If a Weierstrass equation is given, identify it as an elliptic curve over Q.
+
+QUERY TYPE (how the answer should be shaped):
+- scalar: one value of one named object — "What is the rank of 11.a1?". output_format prose.
+- boolean: a simple yes/no answerable from one stored property — "Is 11.a1 semistable?", "Is 389.a1 a
+  CM curve?". output_format prose. (A yes/no needing several invariants and reasoning, like BSD
+  verification, is prose, not boolean.)
+- count: a cardinality — "How many elliptic curves have rank 2?". output_format prose.
+- aggregate: a single statistic over a set, computable in one SQL query — average/min/max/sum/standard
+  deviation/variance, or a single median or percentile of one numeric column. Also an extremal VALUE,
+  "the largest/smallest X" -> MAX/MIN. output_format prose; needs_analysis false.
+- tabular: a list of matching objects ("list elliptic curves with rank 2"); an extremal OBJECT, "the
+  curve(s) with the largest/smallest X" -> ORDER BY X with a small LIMIT; or a grouped aggregate,
+  "X for each Y" / "per Y" / "grouped by Y" / "count by Y" -> a GROUP BY result. output_format table;
+  needs_analysis false. Put the ORDER BY / GROUP BY shape in sql_hint.
+- analytical: needs computation beyond what one SQL query returns — a full distribution or several
+  statistics at once, correlation between two invariants, histograms/binning, or cumulative/growth
+  counts versus a bound. Set needs_analysis true and write a concrete, column-specific
+  analysis_instruction. output_format plot for visual requests, otherwise prose.
+- prose: a free-form question grounded in database invariants that needs a synthesized explanation,
+  often combining several invariants — "Is BSD verified for 11.a1?", "What is the BSD prediction for
+  37.a1?". output_format prose; set needs_analysis true if a computation is required.
+
+GROUNDED FREE-FORM QUESTIONS (query_type "prose"):
+- These ask a conceptual question whose answer must be derived from database invariants — e.g.
+  "Is BSD verified for 11.a1?", "What is the BSD prediction for 37.a1?", "What does the rank of
+  5077.a1 tell us?".
+- Write refined_query so it explicitly requests EVERY invariant needed to answer, naming them so
+  routing and SQL retrieve them (do not leave the needed data implicit). For BSD this is the curve's
+  rank and analytic rank together with the Mordell-Weil / BSD data: regulator, real period, Tamagawa
+  product, analytic order of Sha, special L-value, and torsion.
+- If answering requires evaluating a formula or numerical comparison beyond plain retrieval, set
+  needs_analysis true with a concrete analysis_instruction; if it only requires reading and comparing
+  retrieved values, needs_analysis may be false and synthesis will explain.
+
+NEEDS ANALYSIS:
+- true when answering requires Python over the retrieved rows (statistics, correlation, binning,
+  cumulative sums, grouped aggregation, plotting). Otherwise false.
+- When true, analysis_instruction must state concretely what to compute (e.g. "compute mean, median
+  and standard deviation of the rank column", or "plot a histogram of conductor").
+
+SQL HINT (optional):
+- count: "use SELECT COUNT(*)". aggregate: name the SQL aggregate and column. extremal object:
+  "ORDER BY <col> DESC/ASC LIMIT k". grouped: "GROUP BY <col>, <aggregate>". Leave "" when no special
+  shaping is needed.
+
+Flag ambiguity (action "clarify") only when it would materially change what is queried.
 Do not ask for clarification that is not mathematically necessary.
 
-Conversation history so far:
+Conversation so far:
 <<HISTORY>>"""
 
-_PROVENANCE_SYSTEM = """You are writing a brief, natural closing line for a mathematical
-database query response.
+_PROVENANCE_SYSTEM = """You write the single closing line for a mathematical database query response.
 
-The query returned data from the following SQL tables: {tables}
+The query returned data from these SQL tables: {tables}
 The query returned {rows} rows.
 
-Write one sentence that:
-1. Mentions which table or tables the data came from, using natural mathematical
-   language (e.g. "elliptic curve data" rather than "ec_curvedata")
-2. Asks whether this is what the user was looking for, or whether they would
-   like to refine the query
+Output EXACTLY one sentence that:
+1. States the actual number of rows returned ({rows}) — commit to the number; do not use vague words like "some" or "several".
+2. Names the data source in natural mathematical language (e.g. "elliptic curve data", not "ec_curvedata").
+3. Briefly invites the user to refine the query if they need to.
 
-Be concise and natural. Do not be sycophantic. Do not start with "I"."""
+Hard constraints on your output:
+- Output ONLY that sentence — no text before or after it.
+- Do NOT add any preamble or framing such as "Here's a closing line:", "Sure,", or similar.
+- Do NOT wrap the sentence in quotation marks or backticks.
+- Do NOT restate the user's question. Do NOT start with "I". Do NOT be sycophantic."""
 
 # ── Error messages ────────────────────────────────────────────────────────────
 
@@ -183,6 +253,7 @@ class LMFDBChat:
         self.last_df = None
         self.last_sql: str | None = None
         self.last_tables: list[str] = []
+        self.last_query_type: str | None = None
 
     def chat(self, message: str, verbose: bool = False) -> dict:
         """
@@ -202,18 +273,26 @@ class LMFDBChat:
             self.history.append({"role": "assistant", "content": intent_response})
             return self._reply(intent_response)
 
-        # Step 2: mathematical clarification
+        # Step 2: plan the query — clarity, history-resolved restatement, and query type
         try:
-            clarification = self._clarify(message)
+            plan = self._plan(message)
         except Exception as e:
             return self._error_response(_categorise(e, _MSG_CLARIFY_FAILED))
 
-        if clarification["action"] == "clarify":
-            reply = clarification["question"]
+        if plan["action"] == "clarify":
+            reply = plan["question"]
             self.history.append({"role": "assistant", "content": reply})
             return self._reply(reply)
 
-        query = clarification["refined_query"]
+        query = plan["refined_query"]
+        self.last_query_type = plan["query_type"]
+
+        if verbose:
+            print(
+                f"  Plan: type={plan['query_type']} output={plan['output_format']} "
+                f"needs_analysis={plan['needs_analysis']}"
+            )
+            print(f"  Refined: {query}")
 
         # Step 2.5: resolve concrete mathematical objects (equations, labels, polynomials)
         query, lookup_info = resolve(query)
@@ -238,7 +317,10 @@ class LMFDBChat:
 
         # Step 4: generate SQL
         try:
-            sql_result = generate_sql(query, tables, lookup_info=lookup_info)
+            sql_result = generate_sql(
+                query, tables, lookup_info=lookup_info,
+                query_type=plan["query_type"], sql_hint=plan["sql_hint"],
+            )
         except Exception as e:
             reply = _categorise(e, _MSG_SQL_FAILED)
             self.history.append({"role": "assistant", "content": reply})
@@ -279,28 +361,55 @@ class LMFDBChat:
         self.last_sql = sql
         self.last_tables = _extract_tables(sql)
 
-        # Step 7: generate provenance + confirmation message
-        try:
-            reply = self._provenance_message(self.last_tables, len(df))
-        except Exception:
-            reply = f"Query returned {len(df)} rows."
+        # Step 7: shape the response by the planned output format.
+        output_format = plan["output_format"]
+        # An explicit visual request always means a plot, even if the planner missed it.
+        if any(kw in message.lower() for kw in _PLOT_KEYWORDS):
+            output_format = "plot"
 
-        self.history.append({"role": "assistant", "content": reply})
+        # Run the Python analysis step whenever the plan needs computation beyond SQL
+        # (statistics, correlation, binning, growth, grouped analysis) or a plot.
+        needs_analysis = plan["needs_analysis"] or output_format == "plot"
+        analysis_out = (
+            self.run_analysis_turn(_analysis_instruction(plan, query))
+            if needs_analysis else None
+        )
 
-        # Step 8: auto-run analysis if the original message requests a plot
-        wants_plot = any(kw in message.lower() for kw in _PLOT_KEYWORDS)
-
-        if wants_plot:
-            analysis_result = self.run_analysis_turn(message)
+        # Plot output: return the figure with the analysis explanation.
+        if output_format == "plot":
+            reply = (analysis_out or {}).get("message") or f"Query returned {len(df)} rows."
+            self.history.append({"role": "assistant", "content": reply})
             return {
                 "message": reply,
                 "sql": sql,
-                "code": analysis_result.get("code"),
-                "plot": analysis_result.get("plot"),
+                "code": (analysis_out or {}).get("code"),
+                "plot": (analysis_out or {}).get("plot"),
                 "df": df.to_dict(orient="records"),
-                "error": analysis_result.get("error"),
+                "error": (analysis_out or {}).get("error"),
             }
 
+        # Prose output: synthesise from the data, plus any computed analysis result.
+        if output_format == "prose":
+            analysis_text = (analysis_out or {}).get("result") or ""
+            try:
+                reply = self._synthesize_response(
+                    query, plan["query_type"], df, sql, analysis_text
+                )
+            except Exception:
+                reply = self._safe_provenance(self.last_tables, len(df))
+            self.history.append({"role": "assistant", "content": reply})
+            return {
+                "message": reply,
+                "sql": sql,
+                "code": (analysis_out or {}).get("code"),
+                "plot": None,
+                "df": df.to_dict(orient="records"),
+                "error": None,
+            }
+
+        # Table output (default): provenance line plus tabular data.
+        reply = self._safe_provenance(self.last_tables, len(df))
+        self.history.append({"role": "assistant", "content": reply})
         return {
             "message": reply,
             "sql": sql,
@@ -310,12 +419,30 @@ class LMFDBChat:
             "error": None,
         }
 
+    def _ensure_dataframe(self) -> None:
+        """
+        Rehydrate self.last_df from self.last_sql when the DataFrame is missing.
+
+        last_df lives only in server memory; history/last_sql are restored from the
+        stateless frontend payload. On a fresh worker a follow-up analysis would
+        otherwise have no data, so re-execute the last SQL to recover it.
+        """
+        if self.last_df is None and self.last_sql:
+            try:
+                self.last_df = execute_sql(self.last_sql)
+            except Exception:
+                pass
+
     def run_analysis_turn(self, instruction: str) -> dict:
         """
         Process a follow-up analysis instruction on the current DataFrame.
-        Returns a dict with keys: message, code, plot, error.
+        Returns a dict with keys: message, code, plot, result, error.
         Never raises.
         """
+        # Rehydrate the DataFrame from the last SQL if it was lost (e.g. a follow-up
+        # request landed on a worker without the in-memory result).
+        self._ensure_dataframe()
+
         if self.last_df is None:
             return {
                 "message": (
@@ -324,6 +451,7 @@ class LMFDBChat:
                 ),
                 "code": None,
                 "plot": None,
+                "result": None,
                 "error": "no_dataframe",
             }
 
@@ -334,7 +462,7 @@ class LMFDBChat:
                 rows=len(self.last_df),
                 error=_categorise(e, str(e).split("\n")[0])
             )
-            return {"message": error_msg, "code": None, "plot": None, "error": str(e)}
+            return {"message": error_msg, "code": None, "plot": None, "result": None, "error": str(e)}
 
         code = result.get("code")
         explanation = result.get("explanation", "")
@@ -345,10 +473,10 @@ class LMFDBChat:
                 "The data may not contain the columns needed. "
                 f"Available columns: {', '.join(self.last_df.columns.tolist())}."
             )
-            return {"message": msg, "code": None, "plot": None, "error": None}
+            return {"message": msg, "code": None, "plot": None, "result": None, "error": None}
 
         try:
-            plot_b64 = execute_analysis(code, self.last_df)
+            analysis_out = execute_analysis(code, self.last_df)
         except TimeoutError:
             return {
                 "message": (
@@ -357,6 +485,7 @@ class LMFDBChat:
                 ),
                 "code": code,
                 "plot": None,
+                "result": None,
                 "error": "timeout",
             }
         except Exception as e:
@@ -368,6 +497,7 @@ class LMFDBChat:
                 ),
                 "code": code,
                 "plot": None,
+                "result": None,
                 "error": error_detail,
             }
 
@@ -381,7 +511,8 @@ class LMFDBChat:
         return {
             "message": msg,
             "code": code,
-            "plot": plot_b64,
+            "plot": analysis_out.get("plot"),
+            "result": analysis_out.get("result"),
             "error": None,
         }
 
@@ -391,6 +522,7 @@ class LMFDBChat:
             "history": self.history,
             "last_sql": self.last_sql,
             "last_tables": self.last_tables,
+            "last_query_type": self.last_query_type,
             "has_dataframe": self.last_df is not None,
             "dataframe_shape": (
                 list(self.last_df.shape) if self.last_df is not None else None
@@ -452,18 +584,23 @@ class LMFDBChat:
             system=_CHAT_SYSTEM,
             messages=messages,
         )
-        return r.content[0].text.strip()
+        return _strip_meta(r.content[0].text)
 
-    def _clarify(self, message: str) -> dict:
-        system = _CLARIFY_SYSTEM.replace("<<HISTORY>>", self._history_str())
+    def _plan(self, message: str) -> dict:
+        """
+        Plan the query: clarity decision, history-resolved standalone restatement,
+        and query-type classification. Returns a normalized plan dict (see
+        _normalize_plan) so downstream stages always get complete, valid fields.
+        """
+        system = _PLAN_SYSTEM.replace("<<HISTORY>>", self._history_str())
         client = Anthropic()
         r = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=256,
+            max_tokens=2048,
             system=system,
             messages=[{"role": "user", "content": message}]
         )
-        return _parse(r.content[0].text)
+        return _normalize_plan(_parse(r.content[0].text), fallback_query=message)
 
     def _provenance_message(self, tables: list[str], rows: int) -> str:
         """Generate a natural provenance + confirmation message via Haiku."""
@@ -477,7 +614,48 @@ class LMFDBChat:
             ),
             messages=[{"role": "user", "content": "Generate the closing line."}]
         )
-        return r.content[0].text.strip()
+        return _strip_meta(r.content[0].text)
+
+    def _safe_provenance(self, tables: list[str], rows: int) -> str:
+        """Provenance line, falling back to a plain count if the LLM call fails."""
+        try:
+            return self._provenance_message(tables, rows)
+        except Exception:
+            return f"Query returned {rows} rows."
+
+    def _synthesize_response(
+        self, query: str, query_type: str, df, sql: str, analysis_text: str = ""
+    ) -> str:
+        """
+        Produce a natural-prose answer from the result DataFrame (and optional
+        analysis output). Used for prose query types (scalar/boolean/count/
+        aggregate/prose) instead of returning a raw table.
+
+        Runs on Sonnet for answer reliability, passes the executed SQL so the
+        model can detect LIMIT truncation, and bounds tokens by sending only the
+        first rows of df alongside the true row count.
+        """
+        analysis_block = (
+            f"Computed analysis result:\n{analysis_text}\n" if analysis_text else ""
+        )
+        system = (
+            _SYNTHESIS_PROMPT
+            .replace("<<QUERY>>", query)
+            .replace("<<QUERY_TYPE>>", query_type)
+            .replace("<<ROW_COUNT>>", str(len(df)))
+            .replace("<<COLUMNS>>", ", ".join(map(str, df.columns)))
+            .replace("<<SQL>>", sql or "(none)")
+            .replace("<<DATA>>", df.head(20).to_json(orient="records"))
+            .replace("<<ANALYSIS>>", analysis_block)
+        )
+        client = Anthropic()
+        r = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=512,
+            system=system,
+            messages=[{"role": "user", "content": query}]
+        )
+        return _strip_meta(r.content[0].text)
 
     def _history_str(self) -> str:
         if not self.history:
@@ -521,6 +699,99 @@ def _extract_tables(sql: str) -> list[str]:
             seen.add(m.lower())
             result.append(m)
     return result
+
+
+# Leading filler ("Sure,", "Certainly.") and meta framing clauses ("Here's a
+# natural closing line:") that the model sometimes prepends instead of returning
+# only the answer. Kept deliberately narrow so it never eats real content.
+_QUOTE_CHARS = "\"'“”"
+_FILLER_RE = re.compile(
+    r"^\s*(?:sure|certainly|of course|okay|ok|got it|here you go)\b[,.!:]*\s+",
+    re.IGNORECASE,
+)
+_FRAMING_RE = re.compile(
+    r"^\s*here(?:'s| is)\b[^:\n]*\b(?:line|sentence|response|answer|message|closing)\b[^:\n]*:\s+",
+    re.IGNORECASE,
+)
+
+
+def _strip_meta(text: str) -> str:
+    """
+    Remove LLM framing/preamble and wrapping quotes so only the answer remains.
+
+    Strips two artifacts: leading filler ("Sure, ...") and meta framing clauses
+    ("Here's a natural closing line: ..."), plus quotes/backticks wrapping the
+    whole message. Conservative — the framing pattern only fires when a meta noun
+    (line/sentence/response/answer/message/closing) precedes the colon, so real
+    content like "Here is the rank: 2" is left untouched.
+    """
+    t = text.strip()
+    # Strip surrounding code fences.
+    t = re.sub(r"^```[a-zA-Z]*\s*", "", t)
+    t = re.sub(r"\s*```$", "", t).strip()
+    # Strip leading filler, then a framing clause (filler may precede framing).
+    for pattern in (_FILLER_RE, _FRAMING_RE):
+        stripped = pattern.sub("", t, count=1).strip()
+        if stripped:
+            t = stripped
+    # Strip symmetric wrapping quotes.
+    if len(t) >= 2 and t[0] in _QUOTE_CHARS and t[-1] in _QUOTE_CHARS:
+        t = t[1:-1].strip()
+    return t
+
+
+_QUERY_TYPES = {"scalar", "boolean", "count", "aggregate", "tabular", "analytical", "prose"}
+_OUTPUT_FORMATS = {"prose", "table", "plot"}
+# Types whose natural output is prose rather than a table.
+_PROSE_TYPES = {"scalar", "boolean", "count", "aggregate", "prose"}
+
+
+def _normalize_plan(plan: dict, fallback_query: str) -> dict:
+    """
+    Coerce a raw planner response into a complete, valid plan dict.
+
+    Fills defaults and rejects unknown enum values so downstream stages never see
+    missing keys or bad values. Defaults degrade to today's behaviour: a
+    proceed / tabular / table query that needs no analysis.
+    """
+    action = plan.get("action")
+    if action not in ("proceed", "clarify"):
+        action = "proceed"
+
+    query_type = plan.get("query_type")
+    if query_type not in _QUERY_TYPES:
+        query_type = "tabular"
+
+    output_format = plan.get("output_format")
+    if output_format not in _OUTPUT_FORMATS:
+        output_format = "prose" if query_type in _PROSE_TYPES else "table"
+
+    return {
+        "action": action,
+        "question": (plan.get("question") or "").strip(),
+        "refined_query": plan.get("refined_query") or fallback_query,
+        "query_type": query_type,
+        "output_format": output_format,
+        "needs_analysis": bool(plan.get("needs_analysis", False)),
+        "analysis_instruction": (plan.get("analysis_instruction") or "").strip(),
+        "sql_hint": (plan.get("sql_hint") or "").strip(),
+    }
+
+
+def _analysis_instruction(plan: dict, query: str) -> str:
+    """
+    Instruction for the analysis step. Use the planner's explicit instruction when
+    present; otherwise (e.g. a plot triggered by a keyword rather than by the planner
+    setting needs_analysis) fall back to the standalone refined query and let the
+    analysis step infer the right computation/visualisation for it.
+    """
+    if plan["analysis_instruction"]:
+        return plan["analysis_instruction"]
+    return (
+        f'For this request: "{query}", produce the most informative analysis or '
+        "visualisation of the retrieved data, inferring sensible columns and method "
+        "from the request and the DataFrame."
+    )
 
 
 def _categorise(exc: Exception, default: str = _MSG_ROUTER_FAILED) -> str:

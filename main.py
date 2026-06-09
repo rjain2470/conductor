@@ -127,6 +127,9 @@ class ChatRequest(BaseModel):
 
 class AnalysisRequest(BaseModel):
     instruction: str
+    # Stateless rehydration: the frontend may pass the prior SQL so analysis works
+    # even when this request lands on a worker without the in-memory DataFrame.
+    last_sql: str | None = None
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -165,18 +168,18 @@ def chat(
 @app.post("/analysis")
 def analysis(
     req: AnalysisRequest,
+    response: Response,
     session_id: Optional[str] = Cookie(None),
     _: None = Depends(verify_api_key),
 ):
-    if not session_id or session_id not in _sessions:
-        raise HTTPException(
-            status_code=400,
-            detail="No active session. Submit a /chat query first.",
-        )
-    entry = _sessions[session_id]
-    entry.touch()
-    check_rate_limit(session_id)
-    return entry.chat.run_analysis_turn(req.instruction)
+    # Get or create a session so analysis follow-ups survive worker restarts; the
+    # DataFrame is rehydrated from last_sql inside run_analysis_turn when needed.
+    sid, session = get_or_create_session(session_id)
+    response.set_cookie("session_id", sid, httponly=True, samesite="lax")
+    check_rate_limit(sid)
+    if req.last_sql:
+        session.last_sql = req.last_sql
+    return session.run_analysis_turn(req.instruction)
 
 
 @app.get("/session")

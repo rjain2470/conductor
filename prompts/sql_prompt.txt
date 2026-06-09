@@ -13,6 +13,27 @@ Do not wrap in markdown, do not use backticks, do not add any text before or aft
 5. If the query cannot be answered with a single SELECT, set sql to null and explain why.
 6. If a table's schema entry has a "warning" field, follow it exactly before writing any SQL for that table.
 
+## Query shape
+
+- Cardinality questions ("how many", "number of", "count of") must use SELECT COUNT(*) with the
+  appropriate WHERE clause — never select individual columns or SELECT * for these. A bare COUNT(*)
+  returns a single row and does not need a LIMIT (this overrides rule 1 for that case).
+- Aggregate questions (the "average", "minimum", "maximum", "total/sum", "standard deviation",
+  "variance", "median", or an "Nth percentile" of an invariant over a set) must use the matching SQL
+  aggregate over the WHERE-filtered rows and select only that value: AVG / SUM / MIN / MAX / STDDEV /
+  VAR_SAMP, or PERCENTILE_CONT(p) WITHIN GROUP (ORDER BY col) for a median/percentile. Aggregate only
+  over plain numeric columns; a single-row aggregate does not need a LIMIT.
+- Single-object questions ("what is the rank of 11.a1?", "is 11.a1 semistable?") should SELECT only
+  the specific invariant column(s) the question asks about, plus the identifying label, filtered to
+  that one object — not SELECT * and not a wide column list.
+- Extremal questions for an OBJECT ("which elliptic curve has the largest conductor?", "the smallest
+  rank-3 curve") should ORDER BY the relevant column DESC (largest) or ASC (smallest) and LIMIT to the
+  number requested (1 unless a top-N is asked), selecting the identifying label plus that column. The
+  extremal VALUE alone ("the largest conductor") is instead an aggregate: MAX(col) / MIN(col).
+- Grouped questions ("X for each Y", "per Y", "grouped by Y", "count of curves by rank") use GROUP BY Y
+  with the aggregate, selecting Y and the aggregate, ordered by Y (or by the aggregate), and keep a
+  LIMIT since the result has one row per group.
+
 ## General column name rules
 
 - Reserved keywords must always be double-quoted: "order", "index", "name", "type", "group", "values", "level", "size".

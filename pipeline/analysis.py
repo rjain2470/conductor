@@ -11,6 +11,7 @@ import matplotlib
 matplotlib.use("Agg")  # must be set before any other matplotlib imports
 import matplotlib.pyplot as plt
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from contextlib import redirect_stdout
 from pathlib import Path
 from typing import Optional
 from anthropic import Anthropic
@@ -51,10 +52,16 @@ def generate_analysis(instruction: str, df) -> dict:
     return _parse(r.content[0].text)
 
 
-def execute_analysis(code: str, df) -> Optional[str]:
+def execute_analysis(code: str, df) -> dict:
     """
     Execute generated analysis code in a restricted namespace.
-    Returns a base64-encoded PNG if a plot was produced, else None.
+
+    Returns {"plot": <base64 PNG or None>, "result": <captured text or None>}:
+      - plot: a base64-encoded PNG if the code produced a matplotlib figure, else None.
+      - result: the code's printed stdout (preferred) or str(result) variable, so that
+        non-plot analyses (summary statistics, correlations, grouped aggregates, ...)
+        can be synthesised into a prose answer rather than discarded.
+
     Raises TimeoutError if execution exceeds _TIMEOUT_SECONDS.
 
     Uses ThreadPoolExecutor instead of signal.alarm so it works on any
@@ -64,6 +71,7 @@ def execute_analysis(code: str, df) -> Optional[str]:
     """
     import numpy as np
     import scipy
+    import scipy.stats  # ensure the stats submodule is loaded so scipy.stats works in generated code
 
     namespace = {
         "__builtins__": {
@@ -98,16 +106,27 @@ def execute_analysis(code: str, df) -> Optional[str]:
 
     def _run():
         plt.close("all")
-        exec(code, namespace)  # noqa: S102
+        out = io.StringIO()
+        with redirect_stdout(out):
+            exec(code, namespace)  # noqa: S102
         fig = plt.gcf()
+        plot_b64 = None
         if fig.get_axes():
             buf = io.BytesIO()
             fig.savefig(buf, format="png", bbox_inches="tight", dpi=150)
-            plt.close(fig)
             buf.seek(0)
-            return base64.b64encode(buf.read()).decode()
+            plot_b64 = base64.b64encode(buf.read()).decode()
         plt.close(fig)
-        return None
+
+        printed = out.getvalue().strip()
+        result_val = namespace.get("result")
+        if printed:
+            result_text = printed
+        elif result_val is not None:
+            result_text = str(result_val)
+        else:
+            result_text = None
+        return {"plot": plot_b64, "result": result_text}
 
     with ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(_run)
