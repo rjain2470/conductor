@@ -129,6 +129,8 @@ def generate_sql(
                 query, tables, lookup_info=lookup_info,
                 query_type=query_type, sql_hint=sql_hint, _retry=True,
             )
+        sql = _ensure_limit(sql)
+        result["sql"] = sql
         _validate(sql)
 
     return result
@@ -157,6 +159,22 @@ def _is_scalar_aggregate(sql: str) -> bool:
     m = re.search(r"\bSELECT\b(.*?)\bFROM\b", sql, re.IGNORECASE | re.DOTALL)
     select_clause = m.group(1) if m else sql
     return bool(_AGG_RE.search(select_clause))
+
+
+def _ensure_limit(sql: str, default: int = 10000) -> str:
+    """
+    Append a default LIMIT when one is absent, so result size stays bounded WITHOUT
+    rejecting otherwise-valid SQL.
+
+    Many legitimate queries naturally omit LIMIT — single-object lookups by primary
+    key (scalar/boolean), and full-data analytical queries (distributions) where a
+    LIMIT would distort the result. Enforcing the cap here, rather than failing
+    validation, fixes that whole class uniformly. Scalar aggregates (COUNT/AVG/...
+    with no GROUP BY) are single-row and left untouched.
+    """
+    if _is_scalar_aggregate(sql) or "LIMIT" in sql.upper():
+        return sql
+    return f"{sql.rstrip().rstrip(';').rstrip()} LIMIT {default}"
 
 
 def _validate(sql: str) -> None:
