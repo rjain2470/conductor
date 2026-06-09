@@ -79,6 +79,13 @@ conductor/
 ├── requirements.txt
 └── README.md
 ```
+# Future Work 💠
+
+As of now, Conductor operates via a layered pipeline of LLM calls which handle various tasks, including user interactions, SQL generation, data analysis, and more. While this pipeline is functional and works well, its reasoning capabilities are limited by the fact that each stage is executed independently with a small context window.
+
+A more robust and modern architecture would replace the current layered approach with a single agentic LLM equipped with tools designed for it to execute each aspect of the pipeline. Here, rather than passing through a fixed pipeline with a different LLM at each stage, the model would plan its own approach, iterating and correcting errors until it has an optimal final response.
+
+Another related direction is developing a Model Context Protocol (MCP) server for the LMFDB. Such tooling would allow any MCP-compatible client, such as Claude, or Cursor, to query the database directly, bypassing the need for a dedicated tool. This framework would not only make the LMFDB more accessible to human mathematicians, but would also open the door for agentic AI systems to explore mathematical data autonomously. As agentic systems grow increasingly capable, we believe that such substrates may provide exciting opportunities for mathematical discovery.
 
 # Limitations 🟥
 - The server connects to devmirror.lmfdb.xyz, which may only have partial coverage of the full LMFDB. Moreover, since the LMFDB itself is not fully comprehensive, some data may be unavailable.
