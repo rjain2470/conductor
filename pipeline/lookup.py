@@ -57,6 +57,35 @@ Rules for LMFDB labels:
 No markdown, no backticks, no prose — only the JSON object."""
 
 
+# Deterministic elliptic-curve label disambiguation. The LLM resolver is
+# unreliable at choosing between the two EC label formats (and tends to strip the
+# dot), so re-derive the label straight from the query text: an LMFDB label has a
+# dot (e.g. 11.a1) and queries lmfdb_label; a Cremona label has no dot (e.g. 11a1)
+# and queries Clabel. General over all conductors / isogeny classes / curve numbers.
+_EC_LMFDB_LABEL = re.compile(r"\b\d+\.[a-z]+\d+\b")
+_EC_CREMONA_LABEL = re.compile(r"\b\d+[a-z]+\d+\b")
+
+
+def _correct_ec_label(query: str, lookup: dict) -> dict:
+    """
+    Fix the column/value for elliptic-curve label lookups deterministically.
+
+    Acts only when the resolver already chose an ec_curvedata label column, then
+    re-derives the label from the query so the dot (LMFDB) vs no-dot (Cremona)
+    distinction cannot be lost: LMFDB -> lmfdb_label, Cremona -> Clabel. Leaves the
+    lookup unchanged if no EC label is present in the query.
+    """
+    if lookup.get("table") != "ec_curvedata" or lookup.get("column") not in ("lmfdb_label", "Clabel"):
+        return lookup
+    m = _EC_LMFDB_LABEL.search(query)
+    if m:
+        return {**lookup, "column": "lmfdb_label", "value": m.group()}
+    m = _EC_CREMONA_LABEL.search(query)
+    if m:
+        return {**lookup, "column": "Clabel", "value": m.group()}
+    return lookup
+
+
 def resolve(query: str) -> tuple[str, dict | None]:
     """
     Attempt to resolve a concrete mathematical object in the query.
@@ -86,6 +115,8 @@ def resolve(query: str) -> tuple[str, dict | None]:
 
         if not lookup:
             return query, None
+
+        lookup = _correct_ec_label(query, lookup)
 
         table = lookup["table"]
         column = lookup["column"]
