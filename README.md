@@ -9,10 +9,6 @@ For instance, a mathematician can directly ask Conductor the following questions
 
 > **Can you plot the regulator against the conductor for the rank-1 elliptic curves over Q with conductor under 10,000 on a log-log scale?**
 
-> **Plot the real period vs the analytic order of Sha for elliptic curves of rank 2 with conductor under 5,000.**
-
-> **Which semistable elliptic curves have prime conductor under 500 and non-trivial torsion? Show me the distribution of torsion subgroup structures.**
-
 > **I'm interested in the relationship between regulator and discriminant for totally real cubic fields of class number 1 — can you pull those and plot them on a log-log scale?**
 
 > **Give me a table of the weight-2 newforms with CM at squarefree levels under 500.**
